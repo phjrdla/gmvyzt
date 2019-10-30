@@ -458,6 +458,7 @@ sleep 2
 print "\nAbout to duplicate ...." | tee -a $log
 # To be able to compute duplication duration when done
 start=$SECONDS
+# Invoke RMAN
 $DEBUG $ORACLE_HOME/bin/rman cmdfile $rman_cmd_file log $rman_log_file 
 
 ############################
