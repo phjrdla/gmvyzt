@@ -655,7 +655,7 @@ then
             while [ ${number_of_channels} -gt ${channel_number} ]
             do
               let "channel_number=${channel_number}+1"
-              echo "   allocate channel ch${channel_number}_backup_${SID} type disk format '${DIR_BACKUP_DATA}/INCI1_%d_%U' ;"     >>${cmd}
+              echo "   allocate channel ch${channel_number}_backup_${SID} type disk format '${DIR_BACKUP_DATA}/INCL1_%d_%U' ;"     >>${cmd}
             done
             echo "   backup section size 4G incremental level 1"                                                  >>${cmd}  
             echo "   filesperset 1"                                                                               >>${cmd}  
@@ -709,7 +709,7 @@ EOF
             fi
 
             echo "   release channel ch_backup_${SID} ;"                                                       >>${cmd}
-            echo "   allocate channel ch_backup_${SID} type disk format '${DIR_BACKUP_DATA}/INCI1_ctl_%d_%U' ;" >>${cmd}
+            echo "   allocate channel ch_backup_${SID} type disk format '${DIR_BACKUP_DATA}/INCL1_ctl_%d_%U' ;" >>${cmd}
             echo "   backup"                                                                                     >>${cmd}
             echo "   tag ${SID}_ctl_online"                                                                      >>${cmd}
             echo "   (current controlfile);"                                                                     >>${cmd}
@@ -738,13 +738,13 @@ EOF
                 echo ""                                                                                                 >${cmd}
               fi
               echo " run {"                                                                                            >>${cmd}
-              echo "   allocate channel ch_backup_${SID} type disk format '${DIR_BACKUP_DATA}/INCI1_tbs_%d_%U' ;"     >>${cmd}
+              echo "   allocate channel ch_backup_${SID} type disk format '${DIR_BACKUP_DATA}/INCL1_tbs_%d_%U' ;"     >>${cmd}
               echo "   backup section size 4G incremental level 1"                                                     >>${cmd}  
               echo "   filesperset 1"                                                                                  >>${cmd}  
               echo "   tag ${SID}_tbs_${tabspace}_online"                                                              >>${cmd}
               echo "   (tablespace ${tabspace}) ;"                                                                     >>${cmd}
               echo "   release  channel ch_backup_${SID} ;"                                                            >>${cmd}
-              echo "   allocate channel ch_backup_${SID} type disk format '${DIR_BACKUP_DATA}/INCI1_ctl_%d_%U' ;"     >>${cmd}
+              echo "   allocate channel ch_backup_${SID} type disk format '${DIR_BACKUP_DATA}/INCL1_ctl_%d_%U' ;"     >>${cmd}
               echo "   backup"                                                                                         >>${cmd}
               echo "   tag ${SID}_ctl_online"                                                                          >>${cmd}
               echo "   (current controlfile);"                                                                         >>${cmd}
