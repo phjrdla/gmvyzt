@@ -174,7 +174,7 @@ fi
 #################################################################################################################
 
 #Local tnsnames.ora with new databases
-export TNS_ADMIN=/u01/app/oracle/dup/network/admin
+#export TNS_ADMIN=/u01/app/oracle/dup/network/admin
 
 export ORACLE_SID=$DEST_SID
 ORAENV_ASK=NO
@@ -362,13 +362,10 @@ connect auxiliary sys/$source_sid_pwd
 run{
 allocate channel prm1 type disk;
 allocate channel prm2 type disk;
-allocate channel prm3 type disk;
 allocate auxiliary channel aux1 type disk;
 allocate auxiliary channel aux2 type disk;
 allocate auxiliary channel aux3 type disk;
 allocate auxiliary channel aux4 type disk;
-allocate auxiliary channel aux5 type disk;
-allocate auxiliary channel aux6 type disk;
 DUPLICATE TARGET DATABASE TO '$db_name'
 FROM ACTIVE DATABASE
 !
@@ -378,7 +375,7 @@ SPFILE
   PARAMETER_VALUE_CONVERT
     '$SOURCE_SID','$DEST_SID','$lowersourcedb_name','$lowerdestdb_name'
   SET DB_UNIQUE_NAME='$DEST_SID'
-USING COMPRESSED BACKUPSET SECTION SIZE 4G
+USING COMPRESSED BACKUPSET SECTION SIZE 2G
 NOFILENAMECHECK;
 }
 !
@@ -458,7 +455,6 @@ sleep 2
 print "\nAbout to duplicate ...." | tee -a $log
 # To be able to compute duplication duration when done
 start=$SECONDS
-# Invoke RMAN
 $DEBUG $ORACLE_HOME/bin/rman cmdfile $rman_cmd_file log $rman_log_file 
 
 ############################
@@ -537,11 +533,14 @@ startup pfile='$newpfile'
 alter user sys identified by $dest_sid_pwd;
 alter user system identified by $dest_sid_pwd;
 alter user dzdba identified by $dest_sid_pwd;
+shutdown immediate
 exit
 !
 (( rc = $? ))
 (( rc != 0 )) && { print "Error while starting instance $DEST_SID with ASM spfile pointing pfile $newpfile, exit." | tee -a $err; exit; }
 
-print "srvctl add database -db $DEST_SID -spfile $asmspfile -oraclehome $ORACLE_HOME"
+srvctl add database -db $DEST_SID -spfile $asmspfile -oraclehome $ORACLE_HOME -dbname $db_name
+srvctl config database -db $DEST_SID 
+srvctl start database -db $DEST_SID 
 exit 0
 
