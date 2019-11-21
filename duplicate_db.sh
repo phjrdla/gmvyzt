@@ -174,7 +174,7 @@ fi
 #################################################################################################################
 
 #Local tnsnames.ora with new databases
-#export TNS_ADMIN=/u01/app/oracle/dup/network/admin
+export TNS_ADMIN=/u01/app/oracle/dup/network/admin
 
 export ORACLE_SID=$DEST_SID
 ORAENV_ASK=NO

@@ -1,0 +1,61 @@
+
+HOST_NAME                                                        INSTANCE_NAM                                                                                                                           
+---------------------------------------------------------------- ------------                                                                                                                           
+oflbepat01                                                       NNZDEV                                                                                                                                 
+
+Elapsed: 00:00:00.03
+
+Table dropped.
+
+Elapsed: 00:00:01.61
+
+Table created.
+
+Elapsed: 00:00:01.13
+
+Table altered.
+
+Elapsed: 00:00:00.01
+
+  COUNT(1)                                                                                                                                                                                              
+----------                                                                                                                                                                                              
+         0                                                                                                                                                                                              
+
+Elapsed: 00:00:00.00
+
+Function created.
+
+Elapsed: 00:00:00.07
+
+  COUNT(1)                                                                                                                                                                                              
+----------                                                                                                                                                                                              
+     59582                                                                                                                                                                                              
+
+Elapsed: 00:00:05.34
+---------------------------------------------------------------------------------------------------                                                                                                     
+10000000 sequential inserts                                                                                                                                                                             
+timestamp start is 20-NOV-19 15:36:36.618590000                                                                                                                                                         
+timestamp end is 20-NOV-19 15:37:11.123991000                                                                                                                                                           
+duration in sec is 35                                                                                                                                                                                   
+inserts/sec are 289810                                                                                                                                                                                  
+---------------------------------------------------------------------------------------------------                                                                                                     
+Create primary key on 10000000 records                                                                                                                                                                  
+timestamp start is 20-NOV-19 15:37:11.183822000                                                                                                                                                         
+timestamp end is 20-NOV-19 15:37:49.233497000                                                                                                                                                           
+duration in sec is 39                                                                                                                                                                                   
+---------------------------------------------------------------------------------------------------                                                                                                     
+1000000 random reads                                                                                                                                                                                    
+timestamp start is 20-NOV-19 15:37:49.245048000                                                                                                                                                         
+timestamp end is 20-NOV-19 15:39:45.723682000                                                                                                                                                           
+duration in sec is 117                                                                                                                                                                                  
+reads/sec are 8586                                                                                                                                                                                      
+---------------------------------------------------------------------------------------------------                                                                                                     
+delete of all 10000000 rows                                                                                                                                                                             
+timestamp start is 20-NOV-19 15:39:45.724129000                                                                                                                                                         
+timestamp end is 20-NOV-19 15:42:50.080465000                                                                                                                                                           
+duration in sec is 185                                                                                                                                                                                  
+deletes/sec are 54243                                                                                                                                                                                   
+
+PL/SQL procedure successfully completed.
+
+Elapsed: 00:06:21.95
