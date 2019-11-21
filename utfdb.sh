@@ -1,32 +1,97 @@
-#!/bin/ksh
+#!/usr/bin/ksh
 this_script=$0
+this_script=$0
+cat <<!
+This script attempts to perform an upgrade to 18c
+several ancillary activities are performed before the proper upgrade database action
+!
+
+[[ $# == 0 ]] && {  print "script usage: $(basename $0) [-h] [-a Oracle 12c home] [-b Oracle 18c home] [-c RMAN catalog sid] -d DB to upgrade sid [-g Register with CRS Y/N]"; exit; }
+
+
+# process number, to name files uniquely
 pid=$$
 
-(( $# != 1 )) && { print "usage is $this_script oracle_sid"; exit; }
+# For temporay files
+TMPDIR='/tmp'
+[[ ! -d $TMPDIR ]] && { print "Directory $TMPDIR not found, exit."; exit; }
 
+# log and error files
+log=$TMPDIR/${this_script}_$pid.log
+err=$TMPDIR/${this_script}_$pid.err
 
-typeset -u ORACLE_SID=$1
+typeset -u ORACLE_SID
+typeset -u RMANCAT_SID
+typeset -u REGWGRID
 
-O12_HOME=/u01/app/oracle/product/12.1.0.2
-O18_HOME=/u01/app/oracle/product/18.0.0.0
+while getopts "h:?a:?b:?c:?d:g:?" OPTION
+do
+  case "$OPTION" in
+    a)
+      O12_HOME=$OPTARG
+      ;;
+    b)
+      O18_HOME=$OPTARG
+      ;;
+    c)
+      RMANCAT_SID=$OPTARG
+      ;;
+    d)
+      export ORACLE_SID=$OPTARG
+      ;;
+    g)
+      REGWGRID=$OPTARG
+      ;;
+    h)
+      print "script usage: $(basename $0) [-h] [-a Oracle 12c home] [-b Oracle 18c home] [-c RMAN catalog sid] -d DB to upgrade sid [-g Register with CRS Y/N]" 
+      print "Exemple :  $(basename $0) -a /u01/app/oracle/product/12.1.0.2 -b /u01/app/oracle/product/18.0.0.0 -c RMANCAT -d BELREG -g Y" 
+      print "Exemple :  $(basename $0) -d BELREG -g Y" 
+      exit 1
+      ;;
+  esac
+done
+shift "$(($OPTIND -1))"
+
+########################################################################################
+# A spfile alias must be present
+typeset -u answer
+answer=''
+while [[ -z "$answer" ]]
+do
+  spfile="+DATA/$ORACLE_SID/spfile$ORACLE_SID.ora"
+  read answer?"Is spfile $spfile in place?(Y/N)?" 
+done 
+[[ $answer != 'Y' ]] && { print "Exit $0"; exit; }
+
+########################################################################################
+# Default values
+[[ -z $O12_HOME ]] && O12_HOME=/u01/app/oracle/product/12.1.0.2
+[[ -z $O18_HOME ]] && O18_HOME=/u01/app/oracle/product/18.0.0.0
+
+print "O12_HOME iz $O12_HOME"
+print "O18_HOME iz $O18_HOME"
+print "ORACLE_SID iz $ORACLE_SID"
+print "RMANCAT_SID iz $RMANCAT_SID"
+print "REGWGRID iz $REGWGRID"
 
 # Environment
-ORAENV_ASK=NO
-. oraenv
+#ORAENV_ASK=NO
+#. oraenv
 
 # Connection to sys
 cnxsys='/ as sysdba'
+print "Connects to db with $cnx"
 
-print "O12_HOME    iz $O12_HOME"
-print "O18_HOME    iz $O18_HOME"
-print "ORACLE_HOME iz $ORACLE_HOME"
-print "ORACLE_SID  iz $ORACLE_SID"
-
+print "Check Oracle 18c listener is started"
+rec=$(ps -ef | grep -i tnslsnr | grep -v grep)
+print $rec  
+[[ $rec != *18.0.0* ]] && { print 'Listener 18c is not started, exit.'; exit; }
 
 ########################################################################################
-# Make sure SYS SYSTEM and UNDOTBS1 tablespaces have at least one extensible file
-(( cnt=$($O12_HOME/bin/sqlplus -s $cnxsys <<!
+print "\nMake sure SYS SYSTEM and UNDOTBS1 tablespaces have at least one extensible file"
+(( cnt=$($O12_HOME/bin/sqlplus -s $cnxsys <<! 
 set pages 0
+set timing off
 set feedback off
 set heading on
 select count(1)
@@ -40,8 +105,10 @@ where tablespace_name in ('SYSTEM','SYSAUX','UNDOTBS1')
 if (( cnt > 0 ))
 then
   print "$this_script : some datafiles are not autoextensible"
-  $O12_HOME/bin/sqlplus -s $cnxsys <<!
+  $O12_HOME/bin/sqlplus -s $cnxsys <<! 
+whenever sqlerror exit SQL.SQLCODE
 set lines 200
+set timing off
 set pages 0
 set feedback off
 set heading off
@@ -53,10 +120,40 @@ select 'alter database datafile '||''''||file_name||''' autoextend on next 32M;'
 !
 fi
 (( cnt > 0 )) && { print "use generared alter database datafile command to fix, exit."; exit; }
-########################################################################################
 
-# Recommanded actions before upgrade
-$O12_HOME/bin/sqlplus -s $cnxsys <<! 
+########################################################################################
+print "\nCleanup underscored paramaters"
+cmdfile=$TMPDIR/sql_$pid.cmd
+$O12_HOME/bin/sqlplus -s $cnxsys <<!
+whenever sqlerror exit SQL.SQLCODE
+set lines 200
+set pages 0
+set feedback off
+set heading off
+set timing off
+spool $cmdfile
+select 'alter system reset "'||name||'" scope=spfile;'
+  from v\$spparameter 
+ where substr(name,1,1) = '_'
+   and isspecified='TRUE';
+spool off
+!
+
+if [[ -s $cmdfile ]]
+then
+  cat $cmdfile
+  $O12_HOME/bin/sqlplus -s $cnxsys <<!
+@$cmdfile
+exit
+!
+else
+  print 'no underscored paremeters to remove'
+fi
+
+########################################################################################
+print "\nA bunch of recommanded actions before upgrade"
+$O12_HOME/bin/sqlplus -s $cnxsys <<!
+whenever sqlerror continue
 set serveroutput on
 set lines 240
 set pages 0
@@ -72,18 +169,32 @@ EXECUTE SYS.UTL_RECOMP.RECOMP_PARALLEL(DBMS_STATS.DEFAULT_DEGREE);
 spool off
 !
 
-# Save password file
+########################################################################################
+print "\nSave password file"
 cp -p $ORACLE_HOME/dbs/orapw$ORACLE_SID /tmp/orapwd${ORACLE_SID}_$$
 
-# preupgrade tool report
-# Pre-upgrade report on db
+########################################################################################
+print "\nGenerate a report on db with preupgrade tool"
 stage_dir=/u01/app/oracle/cfgtoollogs/$ORACLE_SID/preupgrade
 preupgrade_log=$stage_dir/preupgrade.log
 preupgrade_fixups_sql=$stage_dir/preupgrade_fixups.sql
 postupgrade_fixups_sql=$stage_dir/postupgrade_fixups.sql
 $O18_HOME/jdk/bin/java -jar $O18_HOME/rdbms/admin/preupgrade.jar TERMINAL TEXT
 
-# Resize SYSTEM SYSAUX UNDOTBS1
+# Display preupgrade tool log
+view $preupgrade_log
+
+# Decide if upgrade process should go on ....
+typeset -u answer
+answer=''
+while [[ -z "$answer" ]]
+do
+  read answer?"Proceed with the upgrade (Y/N)?" 
+done 
+[[ $answer != 'Y' ]] && { print "Exit $0"; exit; }
+
+########################################################################################
+print "\nResize SYSTEM SYSAUX UNDOTBS1 if needed"
 for ts in SYSTEM SYSAUX UNDOTBS1
 do
   if [[ $(grep $ts $preupgrade_log) ]]
@@ -91,7 +202,7 @@ do
     (( reqsize=$(grep $ts $preupgrade_log | awk '{ print $4}') ))
     #print "reqsize is $reqsize"
     (( reqsize = reqsize + 100 ))
-    $O12_HOME/bin/sqlplus -s $cnxsys <<!
+    $O12_HOME/bin/sqlplus -s $cnxsys <<! 
     set lines 200
     set feedback off
     set heading off
@@ -111,15 +222,15 @@ do
    [[ $(grep $ts $preupgrade_log) ]] && {  print "fix $ts size, exit."; exit; }
 done
 
-# Full datadump export for meta-data
-$O12_HOME/bin/sqlplus -s $cnxsys <<!
-create or replace directory TMPDIR as '/tmp';
+########################################################################################
+$O12_HOME/bin/sqlplus -s $cnxsys <<! 
+create or replace directory TMPDIR as '$TMPDIR';
 grant read,write on directory TMPDIR to public;
 exit
 !
 
 # data pump parameter file
-cmdfile="/tmp/cmdfile_$pid.dp"
+cmdfile="$TMPDIR/cmdfile_$pid.dp"
 logfile="${ORACLE_SID}_META_$pid.lst"
 dumpfile="${ORACLE_SID}_META_${pid}_%u.dmp"
 cat <<! > $cmdfile
@@ -136,20 +247,23 @@ logtime=all
 keep_master=no
 !
 
-# exports meta data for the whole database
-$O12_HOME/bin/expdp \'/  as sysdba\' parfile=$cmdfile
+print '\nFull database metadata dump created'
+$O12_HOME/bin/expdp \'/  as sysdba\' parfile=$cmdfile 
 
-
-# make sure flashback is acrivated and a guaranteed savepoint activated
-$O12_HOME/bin/sqlplus -s $cnxsys <<!
+########################################################################################
+print '\nmake sure flashback is activated and a guaranteed savepoint created'
+print '\nCreate restore point DB_UPGRADE'
+$O12_HOME/bin/sqlplus -s $cnxsys <<!  
 alter database flashback on;
 create restore point DB_UPGRADE guarantee flashback database;
 exit
 !
 
-# Run prupgrade fixup script
+########################################################################################
+print '\nRun prupgrade fixup script'
 print "$preupgrade_fixups_sql is run ..."
-$O12_HOME/bin/sqlplus -s $cnxsys <<!
+$O12_HOME/bin/sqlplus -s $cnxsys <<! 
+whenever sqlerror exit SQL.SQLCODE
 set lines 200
 set pages 1000
 set timing on
@@ -159,12 +273,18 @@ spool off
 exit
 !
 
-# Invalid objects before upgrade
+########################################################################################
+print '\nInvalid objects before upgrade'
 $O12_HOME/bin/sqlplus -s $cnxsys <<! 
-set serveroutput on
+whenever sqlerror exit SQL.SQLCODE
 set lines 240
 set pages 1000
 set timing on
+column owner       format a30 trunc
+column status      format a10 trunc
+column object_name format a30 trunc
+column object_type format a30 trunc
+
 column "INVALID_CNT" format 99999
 spool invalid_objects_before.$ORACLE_SID
 select count(1) "INVALID_CNT"
@@ -178,40 +298,61 @@ order by 1, 2, 3;
 spool off
 !
 
+# Decide if upgrade process should go on ....
+answer=''
+while [[ -z "$answer" ]]
+do
+  read answer?"Proceed with the upgrade (Y/N)?" 
+done 
+[[ $answer != 'Y' ]] && { print "Exit $0"; exit; }
 
-# Shutdown instance
+########################################################################################
+print '\nOracle 12c instance is stopped'
 $O12_HOME/bin/sqlplus -s $cnxsys <<! 
 shutdown immediate;
 exit
 !
 
-# Copy ORACLE_HOME/dbs files
-cp -p $O12_HOME/dbs/*${ORACLE_SID}* $O18_HOME/dbs
-
+########################################################################################
+print '\nCopy ORACLE_HOME/dbs files to 18c ORACLE_HOME'
+cp -p $O12_HOME/dbs/*${ORACLE_SID}* $O18_HOME/dbs 
 
 # Oracle 18 binaries are used now
+print "$O18_HOME binaries are now used" 
 
 # Change environnment
 export ORACLE_HOME=$O18_HOME
 export PATH=$ORACLE_HOME/bin:$PATH
 
-
+########################################################################################
+print '\nOracle 18c instance is started in upgrade mode'
 $O18_HOME/bin/sqlplus -s $cnxsys <<!
+whenever sqlerror exit SQL.SQLCODE
 startup upgrade;
 exit
 !
 
+########################################################################################
+print "\nUpgrade to 18c beginth ...."
+$O18_HOME/bin/dbupgrade 
 
-## Start upgrade tool
-$O18_HOME/bin/dbupgrade
+# Decide if upgrade process should go on ....
+typeset -u answer
+answer=''
+while [[ -z "$answer" ]]
+do
+  read answer?"Proceed with the upgrade (Y/N)?" 
+done 
+[[ $answer != 'Y' ]] && { print "Exit $0"; exit; }
 
-# Upgrade TIMEZONE
-#shutdown immediate;
-$O18_HOME/bin/sqlplus -s $cnxsys <<!
+########################################################################################
+print '\nUpgrade TIMEZONE step 1'
+$O18_HOME/bin/sqlplus -s $cnxsys <<! 
+whenever sqlerror exit SQL.SQLCODE
 set lines 200
 set pages 1000
 SET SERVEROUT ON SIZE UNLIM
-spool timezone_file.$ORACLE_SID
+spool timezone_file_1.$ORACLE_SID
 startup upgrade;
 select * from v\$timezone_file;
 DECLARE
@@ -227,11 +368,13 @@ exit
 !
 
 # Upgrade TIMEZONE
-$O18_HOME/bin/sqlplus -s $cnxsys <<!
+print '\nUpgrade TIMEZONE, step 2'
+$O18_HOME/bin/sqlplus -s $cnxsys <<! 
+whenever sqlerror exit SQL.SQLCODE
 set lines 200
 set pages 1000
 SET SERVEROUT ON SIZE UNLIM
-spool timezone_file.$ORACLE_SID
+spool timezone_file_2.$ORACLE_SID
 shutdown immediate;
 startup upgrade;
 DECLARE
@@ -247,7 +390,10 @@ spool off
 exit
 !
 
+########################################################################################
+print '\nCheck database properties'
 $O18_HOME/bin/sqlplus -s $cnxsys <<!
+whenever sqlerror exit SQL.SQLCODE
 set lines 100
 set pages 60
 COLUMN property_name FORMAT A30
@@ -261,9 +407,10 @@ spool off
 exit
 !
 
-# Run postupgrade script
-print "$preupgrade_fixups_sql is run ..."
-$O18_HOME/bin/sqlplus -s $cnxsys <<!
+########################################################################################
+print '\nPostupgrade script'
+print "$preupgrade_fixups_sql is run ..." 
+$O18_HOME/bin/sqlplus -s $cnxsys <<! 
 set lines 200
 set pages 1000
 set timing on
@@ -273,7 +420,9 @@ spool off
 exit
 !
 
-# Post upgrade additonal steps
+########################################################################################
+print '\nPost upgrade additional steps'
+print 'Save spfile and define compatible to 18.7.0.0'
 $O18_HOME/bin/sqlplus -s $cnxsys <<!
 drop restore point DB_UPGRADE;
 create pfile='/tmp/spfile${ORACLE_SID}_18_$$' from spfile;
@@ -284,8 +433,9 @@ startup;
 exit
 !
 
-# Invalid objects after upgrade
-$O18_HOME/bin/sqlplus -s $cnxsys <<! 
+########################################################################################
+print '\nInvalid objects after upgrade'
+$O18_HOME/bin/sqlplus -s $cnxsys <<!
 set serveroutput on
 set lines 240
 set pages 1000
@@ -303,7 +453,9 @@ order by 1, 2, 3;
 spool off
 !
 
+########################################################################################
 # Statistics
+print '\nDictionary, fixed objects and database statistics'
 $O18_HOME/bin/sqlplus -s $cnxsys <<! 
 set serveroutput on
 set lines 240
@@ -318,6 +470,26 @@ spool off
 exit
 !
 
+########################################################################################
+# register in rman catalog
+if [[ ! -z $RMANCAT_SID ]]
+then
+  print '\nRegister with friendly rman catalog'
+  cat <<! > $TMPDIR/rman_${pid}.rman
+connect catalog rmancat/dba0225@$RMANCAT_SID
+connect target /
+register database
+exit
+!
+  cat $TMPDIR/rman_${pid}.rman
+  echo "$O18_HOME/bin/rman @$TMPDIR/rman_${pid}.rman"  
+fi
+
+########################################################################################
 # upgrade crs config
-srvctl upgrade database -db $ORACLE_SID -oraclehome $O18_HOME
-srvctl config database -db $ORACLE_SID
+if [[ ! -z $REGWGRID ]]
+then
+  print '\nUpgrade friendly CRS configuration'
+  echo "srvctl upgrade database -db $ORACLE_SID -oraclehome $O18_HOME"  
+  echo "srvctl config database -db $ORACLE_SID" 
+fi
