@@ -1,0 +1,182 @@
+
+# Create stage table to collect plan details
+
+exec DBMS_SPM.CREATE_STGTAB_BASELINE (table_name => 'PROD_STGTAB', table_owner => 'SYSTEM')
+
+
+# Create a baseline for SQL statement of interest
+declare
+load_plans pls_integer;
+begin
+        load_plans := DBMS_SPM.LOAD_PLANS_FROM_CURSOR_CACHE ( sql_id => 'aurvfyyb0zkc4' );
+end;
+/
+
+
+# Find SQL_HANDLE & PLAN_NAME
+set lines 300
+set pages 1000
+set long 1000000
+column sql_handle format a30
+column plan_name format a42
+column sql_text format a100 wrap
+
+rem where sql_handle = 'SQL_ea7d155a1b387d74';
+
+spool q_sql_plan_baselines.lst;
+  select sql_handle, plan_name, sql_text, enabled, accepted, fixed, executions, elapsed_time/1000000 "Elapsed_sec"
+    from dba_sql_plan_baselines;
+spool off;
+[
+SQL_HANDLE                     PLAN_NAME                                  SQL_TEXT                                                                                             ENA ACC FIX EXECUTIONS Elapsed_sec
+------------------------------ ------------------------------------------ ---------------------------------------------------------------------------------------------------- --- --- --- ---------- -----------
+SQL_92eef0438732fa04           SQL_PLAN_95vrh8f3m5yh4e77e4b94             WITH partitions_INSERT_UPDATE AS ( SELECT     cast(to_char( GAS_DAY, :"SYS_B_00" ) as int) as START_ YES YES NO           5  3348.13596
+                                                                          YEAR,     cast(to_char( GAS_DAY, :"SYS_B_01" ) as int) as START_MONTH,     cast(to_char( GAS_DAY, :"
+                                                                          SYS_B_02" ) as int) as END_YEAR,     cast(to_char( GAS_DAY, :"SYS_B_03" ) as int) as END_MONTH FROM
+                                                                               RABITETL.RBT_ETL_DGO_LAT_RLP_MEAS WHERE     AUDIT_DATETIME>=(to_date(:"SYS_B_04",:"SYS_B_05")-:
+                                                                          "SYS_B_06"/:"SYS_B_07")      AND AUDIT_DATETIME<to_date(:"SYS_B_08",:"SYS_B_09")     AND GAS_DAY BET
+                                                                          WEEN to_date(:"SYS_B_10",:"SYS_B_11") AND to_date(:"SYS_B_12",:"SYS_B_13") GROUP BY     cast(to_char
+                                                                          ( GAS_DAY, :"SYS_B_14" ) as int),     cast(to_char( GAS_DAY, :"SYS_B_15" ) as int) )  ,partitions_DE
+                                                                          LETE AS ( SELECT      cast(to_char( gh.GAS_DAY, :"SYS_B_16" ) as int) as START_YEAR,     cast(to_cha
+                                                                          r( gh.GAS_DAY, :"SYS_B_17" ) as int) as START_MONTH,     cast(to_char( gh.GAS_DAY, :"SYS_B_18" ) as
+                                                                          int) as END_YEAR,     cast(to_char( gh.GAS_DAY, :"SYS_B_19" ) as int) as END_MONTH FROM     SALDNB.X
+                                                                          _FARAO x JOIN GAS_HOUR gh      ON GH.GAS_HOUR_START_DATETIME_UTC1 =            x.PER_DATE_TIME  WHER
+                                                                          E     TABLE_NAME IN (:"SYS_B_20", :"SYS_B_21")     AND AUDIT_DATETIME>=(to_date(:"SYS_B_22",:"SYS_B_
+                                                                          23")-:"SYS_B_24"/:"SYS_B_25")      AND AUDIT_DATETIME<to_date(:"SYS_B_26",:"SYS_B_27")     AND gh.GA
+                                                                          S_DAY BETWEEN to_date(:"SYS_B_28",:"SYS_B_29") AND to_date(:"SYS_B_30",:"SYS_B_31")     GROUP BY
+                                                                           cast(to_char( gh.GAS_DAY, :"SYS_B_32" ) as int),     cast(to_char( gh.GAS_DAY, :"SYS_B_33" ) as int
+                                                                          )     )  SELECT START_YEAR, START_MONTH, END_YEAR, END_MONTH FROM partitions_INSERT_UPDATE UNION SEL
+                                                                          ECT START_YEAR, START_MONTH, END_YEAR, END_MONTH FROM partitions_DELETE
+
+
+# Pack baseline in stage table																		  
+variable cnt number;
+
+exec  :cnt := DBMS_SPM.PACK_STGTAB_BASELINE( table_name => 'PROD_STGTAB',table_owner => 'SYSTEM',sql_handle=> 'SQL_92eef0438732fa04',plan_name => 'SQL_PLAN_95vrh8f3m5yh4e77e4b94');
+
+print :cnt
+
+
+SYSTEM@BELPRD > variable cnt number;
+
+exec  :cnt := DBMS_SPM.PACK_STGTAB_BASELINE( table_name => 'PROD_STGTAB',table_owner => 'SYSTEM',sql_handle=> 'SQL_92eef0438732fa04',plan_name => 'SQL_PLAN_95vrh8f3m5yh4e77e4b94');
+
+print :cnt
+SYSTEM@BELPRD > SYSTEM@BELPRD >
+PL/SQL procedure successfully completed.
+
+SYSTEM@BELPRD > SYSTEM@BELPRD >
+       CNT
+----------
+         1
+
+
+Dump stage table
+Export: Release 12.1.0.2.0 - Production on Thu Nov 7 13:24:41 2019
+
+Copyright (c) 1982, 2014, Oracle and/or its affiliates.  All rights reserved.
+
+Connected to: Oracle Database 12c Enterprise Edition Release 12.1.0.2.0 - 64bit Production
+With the Partitioning, Automatic Storage Management, OLAP, Advanced Analytics
+and Real Application Testing options
+Starting "SYSTEM"."SYS_EXPORT_TABLE_01":  system/******** directory=DATA_PUMP_DIR dumpfile=PROD_STGTAB.dmp tables=PROD_STGTAB reuse_dumpfiles=y
+Estimate in progress using BLOCKS method...
+Processing object type TABLE_EXPORT/TABLE/TABLE_DATA
+Total estimation using BLOCKS method: 448 KB
+Processing object type TABLE_EXPORT/TABLE/TABLE
+Processing object type TABLE_EXPORT/TABLE/INDEX/STATISTICS/INDEX_STATISTICS
+Processing object type TABLE_EXPORT/TABLE/STATISTICS/TABLE_STATISTICS
+Processing object type TABLE_EXPORT/TABLE/STATISTICS/MARKER
+. . exported "SYSTEM"."PROD_STGTAB"                      176.6 KB      29 rows
+Master table "SYSTEM"."SYS_EXPORT_TABLE_01" successfully loaded/unloaded
+******************************************************************************
+Dump file set for SYSTEM.SYS_EXPORT_TABLE_01 is:
+  /u01/app/oracle/admin/BELPRD/dpdump/PROD_STGTAB.dmp
+Job "SYSTEM"."SYS_EXPORT_TABLE_01" successfully completed at Thu Nov 7 13:25:09 2019 elapsed 0 00:00:25
+
+
+Import stage table on target db
+[flbeoraqua01:/TEMP]# impdp system/Qmx0225_belqua directory=DATA_PUMP_DIR dumpfile=PROD_STGTAB.dmp
+
+Import: Release 18.0.0.0.0 - Production on Thu Nov 7 13:35:10 2019
+Version 18.7.0.0.0
+
+Copyright (c) 1982, 2018, Oracle and/or its affiliates.  All rights reserved.
+
+Connected to: Oracle Database 18c Enterprise Edition Release 18.0.0.0.0 - Production
+Master table "SYSTEM"."SYS_IMPORT_FULL_01" successfully loaded/unloaded
+Starting "SYSTEM"."SYS_IMPORT_FULL_01":  system/******** directory=DATA_PUMP_DIR dumpfile=PROD_STGTAB.dmp
+Processing object type TABLE_EXPORT/TABLE/TABLE
+Processing object type TABLE_EXPORT/TABLE/TABLE_DATA
+. . imported "SYSTEM"."PROD_STGTAB"                      176.6 KB      29 rows
+Processing object type TABLE_EXPORT/TABLE/INDEX/STATISTICS/INDEX_STATISTICS
+Processing object type TABLE_EXPORT/TABLE/STATISTICS/TABLE_STATISTICS
+Processing object type TABLE_EXPORT/TABLE/STATISTICS/MARKER
+Job "SYSTEM"."SYS_IMPORT_FULL_01" successfully completed at Thu Nov 7 13:36:33 2019 elapsed 0 00:01:23
+
+"unpack" stage table
+variable cnt number
+
+exec :cnt := dbms_spm.unpack_stgtab_baseline(table_name => 'PROD_STGTAB', table_owner => 'SYSTEM', enabled=>'YES', accepted=> 'YES');
+
+SQL*Plus: Release 18.0.0.0.0 - Production on Thu Nov 7 13:40:22 2019
+Version 18.7.0.0.0
+
+Copyright (c) 1982, 2018, Oracle.  All rights reserved.
+
+Last Successful login time: Thu Nov 07 2019 13:35:10 +01:00
+
+Connected to:
+Oracle Database 18c Enterprise Edition Release 18.0.0.0.0 - Production
+Version 18.7.0.0.0
+
+SQL> set serveroutput on
+SQL> variable cnt number
+
+exec :cnt := dbms_spm.unpack_stgtab_baseline(table_name => 'PROD_STGTAB', table_owner => 'SYSTEM', enabled=>'YES', accepted=> 'YES');
+SQL> SQL>
+PL/SQL procedure successfully completed.
+
+SQL>
+
+Check baseline loaded on target db
+SQL> l
+  1    select sql_handle, plan_name, sql_text, enabled, accepted, fixed, executions, elapsed_time/1000000 "Elapsed_sec"
+  2*     from dba_sql_plan_baselines
+SQL> /
+
+SQL_HANDLE                     PLAN_NAME                                  SQL_TEXT                                                                                             ENA ACC FIX EXECUTIONS Elapsed_sec
+------------------------------ ------------------------------------------ ---------------------------------------------------------------------------------------------------- --- --- --- ---------- -----------
+SQL_92eef0438732fa04           SQL_PLAN_95vrh8f3m5yh4e77e4b94             WITH partitions_INSERT_UPDATE AS ( SELECT     cast(to_char( GAS_DAY, :"SYS_B_00" ) as int) as START_ YES YES NO           5  3348.13596
+                                                                          YEAR,     cast(to_char( GAS_DAY, :"SYS_B_01" ) as int) as START_MONTH,     cast(to_char( GAS_DAY, :"
+                                                                          SYS_B_02" ) as int) as END_YEAR,     cast(to_char( GAS_DAY, :"SYS_B_03" ) as int) as END_MONTH FROM
+                                                                               RABITETL.RBT_ETL_DGO_LAT_RLP_MEAS WHERE     AUDIT_DATETIME>=(to_date(:"SYS_B_04",:"SYS_B_05")-:
+                                                                          "SYS_B_06"/:"SYS_B_07")      AND AUDIT_DATETIME<to_date(:"SYS_B_08",:"SYS_B_09")     AND GAS_DAY BET
+                                                                          WEEN to_date(:"SYS_B_10",:"SYS_B_11") AND to_date(:"SYS_B_12",:"SYS_B_13") GROUP BY     cast(to_char
+                                                                          ( GAS_DAY, :"SYS_B_14" ) as int),     cast(to_char( GAS_DAY, :"SYS_B_15" ) as int) )  ,partitions_DE
+                                                                          LETE AS ( SELECT      cast(to_char( gh.GAS_DAY, :"SYS_B_16" ) as int) as START_YEAR,     cast(to_cha
+                                                                          r( gh.GAS_DAY, :"SYS_B_17" ) as int) as START_MONTH,     cast(to_char( gh.GAS_DAY, :"SYS_B_18" ) as
+                                                                          int) as END_YEAR,     cast(to_char( gh.GAS_DAY, :"SYS_B_19" ) as int) as END_MONTH FROM     SALDNB.X
+                                                                          _FARAO x JOIN GAS_HOUR gh      ON GH.GAS_HOUR_START_DATETIME_UTC1 =            x.PER_DATE_TIME  WHER
+                                                                          E     TABLE_NAME IN (:"SYS_B_20", :"SYS_B_21")     AND AUDIT_DATETIME>=(to_date(:"SYS_B_22",:"SYS_B_
+                                                                          23")-:"SYS_B_24"/:"SYS_B_25")      AND AUDIT_DATETIME<to_date(:"SYS_B_26",:"SYS_B_27")     AND gh.GA
+                                                                          S_DAY BETWEEN to_date(:"SYS_B_28",:"SYS_B_29") AND to_date(:"SYS_B_30",:"SYS_B_31")     GROUP BY
+                                                                           cast(to_char( gh.GAS_DAY, :"SYS_B_32" ) as int),     cast(to_char( gh.GAS_DAY, :"SYS_B_33" ) as int
+                                                                          )     )  SELECT START_YEAR, START_MONTH, END_YEAR, END_MONTH FROM partitions_INSERT_UPDATE UNION SEL
+                                                                          ECT START_YEAR, START_MONTH, END_YEAR, END_MONTH FROM partitions_DELETE
+
+
+
+
+
+
+Fix this baseline to make sure it is used
+DECLARE
+  l_plans_altered  PLS_INTEGER;
+BEGIN
+  l_plans_altered := DBMS_SPM.alter_sql_plan_baseline( sql_handle => 'SQL_92eef0438732fa04', PLAN_NAME => 'SQL_PLAN_95vrh8f3m5yh4e77e4b94', ATTRIBUTE_NAME => 'fixed', attribute_value => 'YES');
+END;
+/
+
+
+~																		  
