@@ -1,0 +1,24 @@
+/u01/app/oracle/product/18.0.0.0/network/admin# rman
+
+Recovery Manager: Release 18.0.0.0.0 - Production on Tue Oct 8 09:37:59 2019
+Version 18.7.0.0.0
+
+Copyright (c) 1982, 2018, Oracle and/or its affiliates.  All rights reserved.
+
+RMAN> connect catalog rmancat/dba0225@rmancat
+
+connected to recovery catalog database
+PL/SQL package RMANCAT.DBMS_RCVCAT version 12.02.00.01. in RCVCAT database is too old
+
+RMAN> upgrade catalog;
+
+recovery catalog owner is RMANCAT
+enter UPGRADE CATALOG command again to confirm catalog upgrade
+
+RMAN>  upgrade catalog;
+
+recovery catalog upgraded to version 18.07.00.00.00
+DBMS_RCVMAN package upgraded to version 18.07.00.00
+DBMS_RCVCAT package upgraded to version 18.07.00.00.
+
+RMAN>
