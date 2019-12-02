@@ -1,0 +1,254 @@
+[root@oraamgadvl01 work]# ksh -x ./patchAnalyze.sh
++ /u01/app/12.1.0/grid/OPatch/opatchauto apply /DD2500/backup/sources/29698629 -analyze
+
+OPatchauto session is initiated at Thu Oct  3 12:11:19 2019
+
+System initialization log file is /u01/app/12.1.0/grid/cfgtoollogs/opatchautodb/systemconfig2019-10-03_12-12-28PM.log.
+
+Session log file is /u01/app/12.1.0/grid/cfgtoollogs/opatchauto/opatchauto2019-10-03_12-12-48PM.log
+The id for this session is LHMK
+
+Executing OPatch prereq operations to verify patch applicability on home /u01/app/oracle/product/12.1.0.2
+Patch applicability verified successfully on home /u01/app/oracle/product/12.1.0.2
+
+
+Verifying SQL patch applicability on home /u01/app/oracle/product/12.1.0.2
+SQL patch applicability verified successfully on home /u01/app/oracle/product/12.1.0.2
+
+
+Executing OPatch prereq operations to verify patch applicability on home /u01/app/12.1.0/grid
+Patch applicability verified successfully on home /u01/app/12.1.0/grid
+
+OPatchAuto successful.
+
+--------------------------------Summary--------------------------------
+
+Analysis for applying patches has completed successfully:
+
+Host:oraamgadvl01
+SIDB Home:/u01/app/oracle/product/12.1.0.2
+Version:12.1.0.2.0
+
+
+==Following patches were SKIPPED:
+
+Patch: /DD2500/backup/sources/29698629/26983807
+Reason: This patch is not applicable to this specified target type - "oracle_database"
+
+Patch: /DD2500/backup/sources/29698629/29423125
+Reason: This patch is not applicable to this specified target type - "oracle_database"
+
+
+==Following patches were SUCCESSFULLY analyzed to be applied:
+
+Patch: /DD2500/backup/sources/29698629/29496791
+Log: /u01/app/oracle/product/12.1.0.2/cfgtoollogs/opatchauto/core/opatch/opatch2019-10-03_12-13-15PM_1.log
+
+Patch: /DD2500/backup/sources/29698629/29509318
+Log: /u01/app/oracle/product/12.1.0.2/cfgtoollogs/opatchauto/core/opatch/opatch2019-10-03_12-13-15PM_1.log
+
+
+Host:oraamgadvl01
+SIHA Home:/u01/app/12.1.0/grid
+Version:12.1.0.2.0
+
+
+==Following patches were SKIPPED:
+
+Patch: /DD2500/backup/sources/29698629/26983807
+Reason: This patch is already been applied, so not going to apply again.
+
+
+==Following patches were SUCCESSFULLY analyzed to be applied:
+
+Patch: /DD2500/backup/sources/29698629/29423125
+Log: /u01/app/12.1.0/grid/cfgtoollogs/opatchauto/core/opatch/opatch2019-10-03_12-23-14PM_1.log
+
+Patch: /DD2500/backup/sources/29698629/29496791
+Log: /u01/app/12.1.0/grid/cfgtoollogs/opatchauto/core/opatch/opatch2019-10-03_12-23-14PM_1.log
+
+Patch: /DD2500/backup/sources/29698629/29509318
+Log: /u01/app/12.1.0/grid/cfgtoollogs/opatchauto/core/opatch/opatch2019-10-03_12-23-14PM_1.log
+
+
+
+OPatchauto session completed at Thu Oct  3 12:24:32 2019
+Time taken to complete the session 13 minutes, 14 seconds
+[root@oraamgadvl01 work]# cat  patchApply.sh
+#!/bin/ksh
+# as root
+/u01/app/12.1.0/grid/OPatch/opatchauto apply /DD2500/backup/sources/29698629
+[root@oraamgadvl01 work]# ./patchApply.sh
+-bash: ./patchApply.sh: Permission denied
+[root@oraamgadvl01 work]# chmod +x ./patchApply.sh
+[root@oraamgadvl01 work]# ksh -x ./patchApply.sh
++ /u01/app/12.1.0/grid/OPatch/opatchauto apply /DD2500/backup/sources/29698629
+
+OPatchauto session is initiated at Thu Oct  3 12:51:08 2019
+
+System initialization log file is /u01/app/12.1.0/grid/cfgtoollogs/opatchautodb/systemconfig2019-10-03_12-52-56PM.log.
+
+Session log file is /u01/app/12.1.0/grid/cfgtoollogs/opatchauto/opatchauto2019-10-03_12-53-13PM.log
+The id for this session is EB9A
+
+Executing OPatch prereq operations to verify patch applicability on home /u01/app/oracle/product/12.1.0.2
+Patch applicability verified successfully on home /u01/app/oracle/product/12.1.0.2
+
+
+Verifying SQL patch applicability on home /u01/app/oracle/product/12.1.0.2
+SQL patch applicability verified successfully on home /u01/app/oracle/product/12.1.0.2
+
+
+Executing OPatch prereq operations to verify patch applicability on home /u01/app/12.1.0/grid
+Patch applicability verified successfully on home /u01/app/12.1.0/grid
+
+
+Preparing to bring down database service on home /u01/app/oracle/product/12.1.0.2
+Successfully prepared home /u01/app/oracle/product/12.1.0.2 to bring down database service
+
+
+Bringing down database service on home /u01/app/oracle/product/12.1.0.2
+Following database has been stopped and will be restarted later during the session: comreld,dfx,docd,gtecpriv,gtpriv10,kaddvl,mobdev,negodvl,negopriv,pocd,sapextd,spiddvl,stard
+Database service successfully brought down on home /u01/app/oracle/product/12.1.0.2
+
+
+Bringing down CRS service on home /u01/app/12.1.0/grid
+Prepatch operation log file location: /u01/app/12.1.0/grid/cfgtoollogs/crsconfig/hapatch_2019-10-03_01-04-39PM.log
+CRS service brought down successfully on home /u01/app/12.1.0/grid
+
+
+Start applying binary patch on home /u01/app/oracle/product/12.1.0.2
+Binary patch applied successfully on home /u01/app/oracle/product/12.1.0.2
+
+
+Start applying binary patch on home /u01/app/12.1.0/grid
+Binary patch applied successfully on home /u01/app/12.1.0/grid
+
+
+Starting CRS service on home /u01/app/12.1.0/grid
+Postpatch operation log file location: /u01/app/12.1.0/grid/cfgtoollogs/crsconfig/hapatch_2019-10-03_01-34-12PM.log
+CRS service started successfully on home /u01/app/12.1.0/grid
+
+
+Starting database service on home /u01/app/oracle/product/12.1.0.2
+Database service successfully started on home /u01/app/oracle/product/12.1.0.2
+
+
+Preparing home /u01/app/oracle/product/12.1.0.2 after database service restarted
+No step execution required.........
+
+
+Trying to apply SQL patch on home /u01/app/oracle/product/12.1.0.2
+SQL patch applied successfully on home /u01/app/oracle/product/12.1.0.2
+
+OPatchAuto successful.
+
+--------------------------------Summary--------------------------------
+
+Patching is completed successfully. Please find the summary as follows:
+
+Host:oraamgadvl01
+SIDB Home:/u01/app/oracle/product/12.1.0.2
+Version:12.1.0.2.0
+Summary:
+
+==Following patches were SKIPPED:
+
+Patch: /DD2500/backup/sources/29698629/26983807
+Reason: This patch is not applicable to this specified target type - "oracle_database"
+
+Patch: /DD2500/backup/sources/29698629/29423125
+Reason: This patch is not applicable to this specified target type - "oracle_database"
+
+
+==Following patches were SUCCESSFULLY applied:
+
+Patch: /DD2500/backup/sources/29698629/29496791
+Log: /u01/app/oracle/product/12.1.0.2/cfgtoollogs/opatchauto/core/opatch/opatch2019-10-03_13-05-04PM_1.log
+
+Patch: /DD2500/backup/sources/29698629/29509318
+Log: /u01/app/oracle/product/12.1.0.2/cfgtoollogs/opatchauto/core/opatch/opatch2019-10-03_13-05-04PM_1.log
+
+
+Host:oraamgadvl01
+SIHA Home:/u01/app/12.1.0/grid
+Version:12.1.0.2.0
+Summary:
+
+==Following patches were SKIPPED:
+
+Patch: /DD2500/backup/sources/29698629/26983807
+Reason: This patch is already been applied, so not going to apply again.
+
+
+==Following patches were SUCCESSFULLY applied:
+
+Patch: /DD2500/backup/sources/29698629/29423125
+Log: /u01/app/12.1.0/grid/cfgtoollogs/opatchauto/core/opatch/opatch2019-10-03_13-12-25PM_1.log
+
+Patch: /DD2500/backup/sources/29698629/29496791
+Log: /u01/app/12.1.0/grid/cfgtoollogs/opatchauto/core/opatch/opatch2019-10-03_13-12-25PM_1.log
+
+Patch: /DD2500/backup/sources/29698629/29509318
+Log: /u01/app/12.1.0/grid/cfgtoollogs/opatchauto/core/opatch/opatch2019-10-03_13-12-25PM_1.log
+
+
+
+OPatchauto session completed at Thu Oct  3 13:58:31 2019
+Time taken to complete the session 67 minutes, 23 seconds
+[root@oraamgadvl01 work]# exit
+logout
+[oraamgadvl01:/u01/app/oracle/work]# su - grid
+Password:
+[grid@oraamgadvl01 ~]$ crsctl stop has
+CRS-2791: Starting shutdown of Oracle High Availability Services-managed resources on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.LISTENER.lsnr' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.comreld.db' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.dfx.db' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.docd.db' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.gtecpriv.db' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.gtpriv10.db' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.kaddvl.db' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.mobdev.db' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.negodvl.db' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.negopriv.db' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.pocd.db' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.sapextd.db' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.spiddvl.db' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.stard.db' on 'oraamgadvl01'
+CRS-2677: Stop of 'ora.LISTENER.lsnr' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.gtecpriv.db' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.kaddvl.db' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.pocd.db' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.docd.db' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.sapextd.db' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.negopriv.db' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.dfx.db' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.gtpriv10.db' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.stard.db' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.comreld.db' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.mobdev.db' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.spiddvl.db' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.negodvl.db' on 'oraamgadvl01' succeeded
+CRS-2673: Attempting to stop 'ora.DATA.dg' on 'oraamgadvl01'
+CRS-2677: Stop of 'ora.DATA.dg' on 'oraamgadvl01' succeeded
+CRS-2673: Attempting to stop 'ora.REDO.dg' on 'oraamgadvl01'
+CRS-2673: Attempting to stop 'ora.FRA.dg' on 'oraamgadvl01'
+CRS-2677: Stop of 'ora.FRA.dg' on 'oraamgadvl01' succeeded
+CRS-2677: Stop of 'ora.REDO.dg' on 'oraamgadvl01' succeeded
+CRS-2673: Attempting to stop 'ora.asm' on 'oraamgadvl01'
+CRS-2677: Stop of 'ora.asm' on 'oraamgadvl01' succeeded
+CRS-2673: Attempting to stop 'ora.evmd' on 'oraamgadvl01'
+CRS-2677: Stop of 'ora.evmd' on 'oraamgadvl01' succeeded
+CRS-2673: Attempting to stop 'ora.cssd' on 'oraamgadvl01'
+CRS-2677: Stop of 'ora.cssd' on 'oraamgadvl01' succeeded
+CRS-2793: Shutdown of Oracle High Availability Services-managed resources on 'oraamgadvl01' has completed
+CRS-4133: Oracle High Availability Services has been stopped.
+[grid@oraamgadvl01 ~]$ ps -ef | grep pmon
+grid     28167 27174  0 14:00 pts/0    00:00:00 grep pmon
+[grid@oraamgadvl01 ~]$
+Broadcast message from root@oraamgadvl01
+        (unknown) at 14:01 ...
+
+The system is going down for power off NOW!
+
