@@ -1,0 +1,51 @@
+
+Recovery Manager complete.
+[oracle@oflbepat01]
+/u01/app/oracle/product/18.0.0.0/network/admin# rman
+
+Recovery Manager: Release 18.0.0.0.0 - Production on Tue Oct 8 09:48:17 2019
+Version 18.7.0.0.0
+
+Copyright (c) 1982, 2018, Oracle and/or its affiliates.  All rights reserved.
+
+RMAN>  connect catalog rmancat/dba0225@rmancat
+
+connected to recovery catalog database
+
+RMAN> connect target  sys/Qmx0225_nnzdev@nnzdev
+
+connected to target database: NNZDEV (DBID=2343593738)
+
+RMAN> register database;
+
+database registered in recovery catalog
+starting full resync of recovery catalog
+full resync complete
+
+RMAN> exit
+
+
+Recovery Manager complete.
+[oracle@oflbepat01]
+/u01/app/oracle/product/18.0.0.0/network/admin# rman
+
+Recovery Manager: Release 18.0.0.0.0 - Production on Tue Oct 8 09:49:01 2019
+Version 18.7.0.0.0
+
+Copyright (c) 1982, 2018, Oracle and/or its affiliates.  All rights reserved.
+
+RMAN>  connect catalog rmancat/dba0225@rmancat
+
+connected to recovery catalog database
+
+RMAN> connect target  sys/Qmx0225_nnzmetd@nnzmetd
+
+connected to target database: NNZMETD (DBID=927053864)
+
+RMAN>  register database;
+
+database registered in recovery catalog
+starting full resync of recovery catalog
+full resync complete
+
+R
