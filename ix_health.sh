@@ -1,13 +1,29 @@
 #!/usr/bin/ksh
 this_script=$0
+
+[[ -z $ORACLE_HOME ]] && { print 'ORACLE_HOME is not defined, exit.'; exit; }
+
 pid=$$
 
 cat <<!
-$this_script lists indexes with depths > 2.
+$this_script lists indexes above a specified level
 Rebuild for these indexes is optional
+Default is to rebuild indexes with level > 2
 !
 
-[[ $# = 0 ]] && { print "Usage: $(basename $0) [-h] -d dbname [-l Level] [-r (rebuild) Y/N]"; exit; }
+if [[ $# = 0 ]]
+then
+  print "Usage: $(basename $0) [-h] -d dbname [-l Level] [-r Y]"
+cat <<!
+  options
+	:d dbname (tnsname)
+        :l level (indexes above specified level are taken into account)
+        :r rebuild identified indexes
+  example
+	/u01/app/oracle/scripts/misc/ix_health.sh -d ORCL -l 2 -r Y
+!
+  exit
+fi
 
 (( BLEVEL = 2 ))
 typeset -u REBUILD='N'
@@ -26,8 +42,8 @@ do
       REBUILD=$OPTARG
       ;;
     h)
-      print "Usage: $(basename $0) [-h] -d dbname [-l Level] [-r rebuuild]"
-      print "Exemple :  $(basename $0) -d BELREG -l 2 -r Y" 
+      print "Usage: $(basename $0) [-h] -d dbname [-l Level]"
+      print "Exemple :  $(basename $0) -d BELREG -l 2" 
       exit 1
       ;;
   esac
@@ -38,14 +54,13 @@ print "DBNAME is $DBNAME"
 print "BLEVEL is $BLEVEL"
 print "REBUILD is $REBUILD"
 
-(( BLEVEL <= 1 )) && { print "Level must be > 1, exit."; exit; }
-
 cnx="dzdba/Qmx0225_$lowerDBNAME@$DBNAME"
 
 [[ -z $ORACLE_HOME ]] && { print "ORACLE_HOME is not defined, exit."; exit; }
 
 candidates="/tmp/candidates_${DBNAME}_$pid.lst"
 $ORACLE_HOME/bin/sqlplus -S $cnx <<!
+whenever sqlerror exit sql.sqlcode;
 set pages 100
 set lines 110
 set timing off
@@ -101,11 +116,12 @@ spool off
 print "\nIndexes health report"
 ls -l $candidates
 
-cmdfile="/tmp/sql_$pid.cmd"
-cmdlog="/tmp/sql_$pid.log"
+cmdfile="/tmp/rebuild_${DBNAME}_$pid.cmd"
+cmdlog="/tmp/rebuild_${DBNAME}_$pid.log"
 
 print "\nRebuilds script is $cmdfile"
 $ORACLE_HOME/bin/sqlplus -S $cnx <<!
+whenever sqlerror exit sql.sqlcode;
 set pages 0
 set lines 100
 set feedback off
@@ -114,6 +130,18 @@ set trimspool on
 set termout off
 set echo off
 spool $cmdfile
+select 'set timing on'
+  from dual
+/
+select 'set echo on'
+  from dual
+/
+select 'spool $cmdlog'
+  from dual
+/
+select 'whenever sqlerror exit sql.sqlcode;'
+  from dual
+/
 select 'alter index '||owner||'.'||INDEX_NAME||' REBUILD ONLINE PARALLEL '||DEGREE||';'
   from all_indexes
  where owner in ( select username
@@ -135,20 +163,14 @@ select 'alter index '||aip.index_owner||'.'||aip.INDEX_NAME||' REBUILD PARTITION
   and aip.index_name = ai.index_name
 order by aip.index_owner, aip.index_name, aip.partition_name
 /
+select 'spool off'
+  from dual
+/
 spool off
 !
 
-[[ $REBUILD != 'Y' ]] && { print "\nRebuilds script is NOT run, exit."; exit; }
+[[ $REBUILD != 'Y' ]] && { print "\nRebuilds script was NOT run, exit."; exit; }
 
-print "\nRebuilds are performed"
+print "\nRebuilds are performed in background"
 
-$ORACLE_HOME/bin/sqlplus -S $cnx <<!
-set timing on
-set termout on
-set echo on
-spool $cmdlog
-@$cmdfile
-spool off
-!
-
-[[ -f $cmdfile ]] && rm -f $cmdfile
+nohup $ORACLE_HOME/bin/sqlplus -s $cnx @$cmdfile&
