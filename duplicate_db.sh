@@ -1,5 +1,8 @@
 #!/usr/bin/ksh
-# This scripts performs all the steps necessary for an RMAN database duplication using a backup
+# This scripts performs all the steps necessary for an RMAN database duplication using a backup or 'duplicate active'
+# Script must run on destination host, requires a RMAN catalog and a spfile for the source database
+# In addition several parameter in spfile may interfere, with warning to crash, with the duplication process
+# Thse parameters include ia customised log_archive_format, deprecated parameter and more ...
 # Main steps are 
 #   cleanup,
 #   generation of auxiliary instance init parameter file
@@ -9,8 +12,10 @@
 #   Post duplication actions
 
 this_script=$0
-pgm=$(basename $0)
 pgm=${pgm%%.*}
+
+# process number, to name files uniquely 
+pid=$$
 
 # Error handling
 set -e
@@ -21,10 +26,7 @@ DEBUG=''
 [[ ! -z $DEBUG  ]] && set -x
 #trap "print $this_script aborted" INT TERM EXIT
 
-# process number, to name files uniquely 
-pid=$$
-
-# For temporay files
+# Temp files directory
 TMPDIR='/tmp'
 [[ ! -d $TMPDIR ]] && { print "Directory $TMPDIR not found, exit." | tee -a $err; exit; }
 
@@ -49,7 +51,7 @@ typeset -u DEST_SID=''
 typeset -l lowerDEST_SID=''
 typeset -u RMAN_SID=''
 typeset -u ADM_SID=''
-typeset -u DUPLICATE_MODE=$BACKUP_MODE
+typeset -u DUPLICATE_MODE=$ACTIVE_MODE
 typeset -u UNTIL_TIME=''
 typeset -u SHOW_PROGRESS=''
 BACKUP_LOCATION_ROOT="/DD2500/backup/"
@@ -106,7 +108,7 @@ print "BACKUP_LOCATION_ROOT is $BACKUP_LOCATION_ROOT" | tee -a $log
 
 # Mandatory parameters
 [[ $DUPLICATE_MODE != $BACKUP_MODE && $DUPLICATE_MODE != $ACTIVE_MODE ]] && { print "Allowed values for DUPLICATE_MODE are $BACKUP_MODE or $ACTIVE_MODE"; exit; }
-[[ -z $SOURCE_SID ]] && { print "SOURCE_SID is mandatory, exit."; exit; }
+[[ -z $SOURCE_SID && $DUPLICATE_MODE != $ACTIVE_MODE ]] && { print "SOURCE_SID is mandatory for active duplication, exit."; exit; }
 [[ -z $DEST_SID ]] && { print "DEST_SID is mandatory, exit."; exit; }
 
 #################################################################################################################
@@ -116,6 +118,7 @@ V_DATA_DISKGROUP=DATA
 V_ARCHIVE_DISKGROUP=FRA
 V_REDO_DISKGROUP=REDO
 
+# can't get it to work ....
 function remove_db
 {
 print "function remove_db invoked ..."
@@ -174,17 +177,19 @@ fi
 #################################################################################################################
 
 #Local tnsnames.ora with new databases
-export TNS_ADMIN=/u01/app/oracle/dup/network/admin
+# FLUXYS convention for TNS_ADMIN
+export TNS_ADMIN=/u01/app/oracle/network/admin
+# when using a test tnsnames.ora
+# export TNS_ADMIN=/u01/app/oracle/dup/network/admin
 
 export ORACLE_SID=$DEST_SID
-ORAENV_ASK=NO
-. oraenv
-env | grep ORA | sort
-
-sleep 5
+export ORACLE_HOME=/u01/app/oracle/product/18.0.0.0
+#ORAENV_ASK=NO
+#. oraenv
+#env | grep ORA | sort
+#sleep 5
 
 # set parameters for auxiliary instance init.ora file
-#db_name=$DEST_SID
 # Case when DEST_SID is like db_name_STBY, resulting DEST_SID length is often > 8
 source_db_name=${SOURCE_SID%_*}
 dest_db_name=${DEST_SID%_*}
@@ -195,22 +200,27 @@ db_name=$dest_db_name
 # Oracle db_name must be <= 8
 (( ${#db_name} > 8 )) && { print "db_name length is > 8, exit."; exit; }
 db_unique_name=$DEST_SID
+remote_login_passwordfile='EXCLUSIVE'
 compatible=18.7.0
+
+# Required directories
 audit_file_dest="$ORACLE_BASE/admin/$DEST_SID/adump"
 diagnostic_dest="$ORACLE_BASE/diag/rdbms/$lowerdestdb_name/$DEST_SID/trace"
 core_dump_dest="$ORACLE_BASE/diag/rdbms/$lowerdestdb_name/$DEST_SID/cdump"
+
+# Locations for data, fra &  controlfiles
 db_create_file_dest='+DATA'
 db_create_online_log_dest_1='+REDO'
 db_recovery_file_dest='+FRA'
 db_recovery_file_dest_size=20G
-remote_login_passwordfile='EXCLUSIVE'
-# Control files
+
 control_file_1='control01.ctl'
 control_file_2='control02.ctl'
 control_file_dir_1="$db_create_file_dest/$DEST_SID/CONTROLFILE"
 control_file_dir_2="$db_recovery_file_dest/$DEST_SID/CONTROLFILE"
 ctl_file_1="$control_file_dir_1/$control_file_1"
 ctl_file_2="$control_file_dir_2/$control_file_2"
+
 control_files="'$ctl_file_1','$ctl_file_2'"
 
 # sysdba password file
@@ -224,37 +234,46 @@ asmspfile="$db_create_file_dest/$DEST_SID/spfile${DEST_SID}"
 newpfile="$ORACLE_HOME/dbs/init${DEST_SID}.ora"
 
 #################################################################################################################
+# En attendant que PasswordState débarque sur flbeoradgprd01 les mots de passe sont codés, quelle horreur !!!!!
+#################################################################################################################
+# Passwords are preset
+source_sid_pwd="Qmx0225_$lowerSOURCE_SID"
+dest_sid_pwd="Qmx0225_$lowerDEST_SID"
+#################################################################################################################
+
+#################################################################################################################
 # PasswordState gpg setup
 OEM_HOST=flbeoraoem01
+
+# Global security file
 GLOB_SECFILE=/u01/app/oracle/scripts/security/reslist_$OEM_HOST.txt.gpg
 
-DEST_SECFILE=/u01/app/oracle/scripts/security/reslist_${HOSTNAME}.txt.gpg
-[[ ! -s $DEST_SECFILE ]] && { print "GPG $DEST_SECFILE not found, exit." | tee -a $err; exit; }
+# Local file (specific to host)
+#DEST_SECFILE=/u01/app/oracle/scripts/security/reslist_${HOSTNAME}.txt.gpg
+#[[ ! -s $DEST_SECFILE ]] && { print "GPG $DEST_SECFILE not found, exit." | tee -a $err; exit; }
+# to proceed without the security file
+#[[ ! -s $DEST_SECFILE ]] && print "GPG $DEST_SECFILE not found, we proceeed ..." 
 
 # Get SYS info for source & destination
 sys_usr=SYS
 
-# Find host for $SOURCE_SID with tnsping. Only for active duplication.
-if [[ $DUPLICATE_MODE == $ACTIVE_MODE ]]
-then
-  sshcmd="gpg -qd $GLOB_SECFILE | grep -i \"$SOURCE_SID:$sys_usr:\" | cut -d \":\" -f3"
-  source_sid_pwd=$(ssh oracle@$OEM_HOST $sshcmd)
-  # 2019/10/28 :  comme en ce moment passwordstate est souvent en retard, j'applique la convention ....
-  [[ -z $source_sid_pwd ]]  && { source_sid_pwd="Qmx0225_${lowersourcedb_name}"; print "source_sid_pwd according to convention : $source_sid_pwd"; }
-  [[ -z $source_sid_pwd ]]  && { print "$sys_usr password for $SOURCE_SID not found, exit." | tee -a $err; exit; }
-fi
+# Find sys password for $SOURCE_SID, necessary for active duplication. Only for active duplication.
+#if [[ $DUPLICATE_MODE == $ACTIVE_MODE ]] 
+#then
+#  sshcmd="gpg -qd $GLOB_SECFILE | grep -i \"$SOURCE_SID:$sys_usr:\" | cut -d \":\" -f3"
+#  source_sid_pwd=$(ssh oracle@$OEM_HOST $sshcmd)
+#  [[ -z $source_sid_pwd ]]  && { print "$sys_usr password for $SOURCE_SID not found, exit." | tee -a $err; exit; }
+#fi
 
-dest_sid_pwd=$(gpg -qd $DEST_SECFILE | grep -i "$DEST_SID:$sys_usr:" | cut -d ":" -f3)
-#dest_sid_pwd=${source_sid_pwd}
-# 2019/10/21 :  comme en ce moment passwordstate est souvent en retard, j'applique la convention ....
-[[ -z $dest_sid_pwd ]]  && { dest_sid_pwd="Qmx0225_${lowerdestdb_name}"; print "dest_sid_pwd according to convention : $dest_sid_pwd"; }
+# Find sys password for $DEST_SID
+#dest_sid_pwd=$(gpg -qd $DEST_SECFILE | grep -i "$DEST_SID:$sys_usr:" | cut -d ":" -f3)
+#[[ -z $dest_sid_pwd ]]  && { print "$sys_usr password for $DEST_SID not found, exit." | tee -a $err; exit; }
 
-[[ -z $dest_sid_pwd ]]  && { print "$sys_usr password for $DEST_SID not found, exit." | tee -a $err; exit; }
-[[ ! -z $DEBUG ]] && print "dest_sid_pwd is $dest_sid_pwd"  | tee -a $log
+print "source_sid_pwd is $source_sid_pwd"
+print "dest_sid_pwd is $dest_sid_pwd"
+
 #################################################################################################################
-
-# connection string
-#dest_cnxsys="sys/$dest_sid_pwd@$DEST_SID as sysdba"
+# connection string for a local connection.
 dest_cnxsys="sys/$dest_sid_pwd as sysdba"
 
 # Abort instance $DEST_SID if found
@@ -280,15 +299,16 @@ fi
 #################################################################################################################
 print '\nASM cleanup' | tee -a $log
 print "ORACLE_SID is $ORACLE_SID"
-#remove_db
-ssh grid@flbeoradgqua01 "/home/grid/dup/rmasm4db.sh $ORACLE_SID"
+#remove_db 
+# until remove_db is sorted out ...
+#ssh grid@flbeoradgqua01 "/home/grid/dup/rmasm4db.sh $ORACLE_SID"
 
 sleep 5
 
-print '\nPassword & pfiles cleanup' | tee -a $log
-[[ -f $passwordfile ]] && $DEBUG rm -v $passwordfile | tee -a $log
-[[ -f $newpfile ]] && $DEBUG rm -v $newpfile | tee -a $log
-[[ -f $spfile ]] && $DEBUG rm -v $spfile | tee -a $log
+print '\nPassword & pfiles cleanup'
+[[ -f $passwordfile ]] && $DEBUG rm -v $passwordfile
+[[ -f $newpfile ]] && $DEBUG rm -v $newpfile
+[[ -f $spfile ]] && $DEBUG rm -v $spfile
 
 # Create minimal auxiliary instance init.ora file
 init_ora_file="$TMPDIR/init_${DEST_SID}_4_dup_${pid}.ora"
@@ -301,14 +321,15 @@ remote_login_passwordfile='EXCLUSIVE'
 db_create_file_dest='$db_create_file_dest'
 db_recovery_file_dest='$db_recovery_file_dest'
 db_recovery_file_dest_size='$db_recovery_file_dest_size'
-db_create_online_log_dest_1='+REDO'
-db_create_online_log_dest_2='+FRA'
+# useless for auxiliary instance
+#db_create_online_log_dest_1='+REDO'
+#db_create_online_log_dest_2='+FRA'
 !
-[[ ! -s $init_ora_file ]] && { print "Auxiliary instance $DEST_SID $init_ora_file not created, exit." | tee -a $err; exit; }
-print "\nAuxiliary instance $DEST_SID $init_ora_file" | tee -a $log
+[[ ! -s $init_ora_file ]] && { print "Auxiliary instance $DEST_SID $init_ora_file not created, exit."; exit; }
+print "\nAuxiliary instance $DEST_SID $init_ora_file"
 cat $init_ora_file | tee -a $log
 
-# Create RMAN command file
+# RMAN setup
 rman_cmd_file="$TMPDIR/duplicate_${SOURCE_SID}_2_${DEST_SID}_${pid}.rman"
 rman_log_file="$TMPDIR/duplicate_${SOURCE_SID}_2_${DEST_SID}_${pid}.log"
 
@@ -334,7 +355,7 @@ DUPLICATE DATABASE '$SOURCE_SID' TO '$DEST_SID'
 
   if [[ ! -z $UNTIL_TIME ]] 
   then
-    print "Setting up rman command file for $UNTIL_TIME" | tee -a $log
+    print "Setting up rman command file for $UNTIL_TIME"
     cat <<! >> $rman_cmd_file
 UNTIL TIME "$UNTIL_TIME"
 !
@@ -381,7 +402,7 @@ NOFILENAMECHECK;
 !
 fi
 
-[[ ! -s $rman_cmd_file ]] && { print "RMAN command file $rman_cmd_file  not created, exit." | tee -a $err; exit; }
+[[ ! -s $rman_cmd_file ]] && { print "RMAN command file $rman_cmd_file  not created, exit."; exit; }
 print "\nRMAN command file $rman_cmd_file" | tee -a $log
 cat $rman_cmd_file
 
@@ -413,17 +434,17 @@ then
 fi
 
 # Create mandatory directory
-[[ ! -d $audit_file_dest ]] &&  mkdir -pv $audit_file_dest | tee -a $log
-[[ ! -d $audit_file_dest ]] && { print "Audit directory $audit_file_dest not found, exit." | tee -a $err; exit; }
-[[ ! -d $diagnostic_dest ]] &&  mkdir -pv $diagnostic_dest | tee -a $log
-[[ ! -d $diagnostic_dest ]] && { print "Diagnostic directory $diagnostic_dest not found, exit." | tee -a $err; exit; }
-[[ ! -d $core_dump_dest ]] &&  mkdir -pv $core_dump_dest | tee -a $log
-[[ ! -d $core_dump_dest ]] && { print "Core dump directory $core_dump_dest not found, exit." | tee -a $err; exit; }
+[[ ! -d $audit_file_dest ]] &&  mkdir -pv $audit_file_dest
+[[ ! -d $audit_file_dest ]] && { print "Audit directory $audit_file_dest not found, exit."; exit; }
+[[ ! -d $diagnostic_dest ]] &&  mkdir -pv $diagnostic_dest
+[[ ! -d $diagnostic_dest ]] && { print "Diagnostic directory $diagnostic_dest not found, exit."; exit; }
+[[ ! -d $core_dump_dest ]] &&  mkdir -pv $core_dump_dest
+[[ ! -d $core_dump_dest ]] && { print "Core dump directory $core_dump_dest not found, exit."; exit; }
 
 # Create password file
-[[ $DUPLICATE_MODE == $BACKUP_MODE ]] && $DEBUG $ORACLE_HOME/bin/orapwd file=$passwordfile password=$dest_sid_pwd entries=10  force=y | tee -a $log
+[[ $DUPLICATE_MODE == $BACKUP_MODE ]] && $DEBUG $ORACLE_HOME/bin/orapwd file=$passwordfile password=$dest_sid_pwd entries=10  force=y
 # For active duplication SYS password must be identical for source & destination
-[[ $DUPLICATE_MODE == $ACTIVE_MODE ]] && $DEBUG $ORACLE_HOME/bin/orapwd file=$passwordfile password=$source_sid_pwd entries=10  force=y | tee -a $log
+[[ $DUPLICATE_MODE == $ACTIVE_MODE ]] && $DEBUG $ORACLE_HOME/bin/orapwd file=$passwordfile password=$source_sid_pwd entries=10  force=y
 
 [[ ! -s $passwordfile ]] && { print "Oracle password file $passwordfile empty or not found, exit." | tee -a $err; exit; }
 print "Oracle password file $passwordfile created" | tee -a $log
@@ -438,21 +459,21 @@ sleep 5
 
 if [[ -z $DEBUG ]]
 then
-  print "\nStartup auxiliary instance $DEST_SID" | tee -a $log
+  print "\nStartup auxiliary instance $DEST_SID"
 # Start auxiliary instance
-  $ORACLE_HOME/bin/sqlplus -s $dest_cnxsys <<! | tee -a $log
+  $ORACLE_HOME/bin/sqlplus -s $dest_cnxsys <<!
 whenever sqlerror exit sql.sqlcode;
 startup nomount pfile='$init_ora_file';
 exit
 !
   (( rc = $? ))
-  (( rc != 0 )) && { print "Error while starting auxiliary instance $DEST_SID, exit." | tee -a $err; exit; }
+  (( rc != 0 )) && { print "Error while starting auxiliary instance $DEST_SID, exit."; exit; }
 fi
 
 sleep 2
 
 # Duplicate database with rman
-print "\nAbout to duplicate ...." | tee -a $log
+print "\nAbout to duplicate ...."
 # To be able to compute duplication duration when done
 start=$SECONDS
 $DEBUG $ORACLE_HOME/bin/rman cmdfile $rman_cmd_file log $rman_log_file 
@@ -464,11 +485,11 @@ $DEBUG $ORACLE_HOME/bin/rman cmdfile $rman_cmd_file log $rman_log_file
 (( ora_err_cnt = $( grep 'ORA-' $rman_log_file | wc -l) ))
 if (( rman_err_cnt > 0 || ora_err_cnt > 0 )) 
 then
-  print "RMAN error count is $rman_err_cnt" | tee -a $err
-  grep 'RMAN-' $rman_log_file | tee -a $err
-  print "Oracle error count is $ora_err_cnt" | tee -a $err
-  grep 'ORA-' $rman_log_file | tee -a $err
-  print  "\n$DEST_SID duplication has error(s), investigate, exit." | tee -a $err
+  print "RMAN error count is $rman_err_cnt"
+  grep 'RMAN-' $rman_log_file 
+  print "Oracle error count is $ora_err_cnt"
+  grep 'ORA-' $rman_log_file
+  print  "\n$DEST_SID duplication has error(s), investigate, exit."
   failure_msg="Failure for $DEST_SID duplication"
   mailx -s "$failure_msg" $mailx_it_database_list < $err
   mailx -s "$failure_msg" $mailx_it_database_team_list < $err
@@ -476,7 +497,7 @@ then
 else
   success_msg="Succesfull duplication for $DEST_SID"
   print "\n$success_msg\n" | tee -a $log
-  date -ud "@$((SECONDS-start))" "+Elapsed Time: %H:%M:%S.%N" | tee -a $log
+  date -ud "@$((SECONDS-start))" "+Elapsed Time: %H:%M:%S.%N"
   mailx -s "$success_msg" $mailx_it_database_list < $log
   mailx -s "$success_msg" $mailx_it_database_team_list < $log
 fi
@@ -488,21 +509,21 @@ fi
 #################################################################################################################
 # Store duplicated database spfile on ASM
 #################################################################################################################
-print "\nPut $DEST_SID spfile on ASM" | tee -a $log
+print "\nPut $DEST_SID spfile on ASM" 
 # Create a temp pfile from current spfile
-print "About to create temp pfile $tmppfile" | tee -a $log
-$ORACLE_HOME/bin/sqlplus -s $dest_cnxsys <<! | tee -a $log
+print "About to create temp pfile $tmppfile"
+$ORACLE_HOME/bin/sqlplus -s $dest_cnxsys <<!
 whenever sqlerror exit sql.sqlcode;
 create pfile='$tmppfile' from spfile;
 exit
 !
 (( rc = $? ))
-(( rc != 0 )) && { print "Error while creating pfile $tmppfile from spfile, exit." | tee -a $err; exit; }
-[[ ! -s $tmppfile ]] && { print "Temporary pfile $tmppfile empty of not found, exit." | tee -a $err; exit; }
+(( rc != 0 )) && { print "Error while creating pfile $tmppfile from spfile, exit."; exit; }
+[[ ! -s $tmppfile ]] && { print "Temporary pfile $tmppfile empty of not found, exit."; exit; }
 
 # Put spfile on ASM
-print "About to create ASM pfile $asmspfile" | tee -a $log
-$ORACLE_HOME/bin/sqlplus -s $dest_cnxsys <<! | tee -a $log
+print "About to create ASM pfile $asmspfile" 
+$ORACLE_HOME/bin/sqlplus -s $dest_cnxsys <<!
 whenever sqlerror exit sql.sqlcode;
 create spfile='$asmspfile' from pfile='$tmppfile';
 exit
