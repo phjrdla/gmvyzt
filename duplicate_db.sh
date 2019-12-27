@@ -50,11 +50,10 @@ typeset -l lowerSOURCE_SID=''
 typeset -u DEST_SID=''
 typeset -l lowerDEST_SID=''
 typeset -u RMAN_SID=''
-typeset -u ADM_SID=''
 typeset -u DUPLICATE_MODE=$ACTIVE_MODE
 typeset -u UNTIL_TIME=''
-typeset -u SHOW_PROGRESS=''
-BACKUP_LOCATION_ROOT="/DD2500/backup/"
+typeset -u POST_DUPLICATION='N'
+BACKUP_LOCATION=''
 
 while getopts 'hm:s:d:r:a:b:u:p' OPTION
 do
@@ -73,38 +72,49 @@ do
     r)
       RMAN_SID=$OPTARG
       ;;
-    a)
-      ADM_SID=$OPTARG
-      ;;
     b)
-      BACKUP_LOCATION_ROOT=$OPTARG
+      BACKUP_LOCATION=$OPTARG
       ;;
     u)
       UNTIL_TIME=$OPTARG
       ;;
     p)
-      SHOW_PROGRESS='Y'
+      POST_DUPLICATION='N'
       ;;
     h)
-      print "script usage: $(basename $0) [-h] [-m duplicate_mode (Backup/Active)] [-s source_db] [-d dest_db] [-r RMAN_catalog_db] [-a DZDBA_db] [-b backup_location_root ]" | tee -a $log
-      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -m a -u 'SYSDATE-1'" | tee -a $log
-      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -b /DD2500/backup" | tee -a $log
-      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -r EMPRD" | tee -a $log
-      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -a EMPRD" | tee -a $log
-      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -r EMPRD -a EMPRD" | tee -a $log
+      print "script usage: $(basename $0) [-h] [-m duplicate_mode (B/A)] [-s source_db] [-d dest_db] [-r RMAN_catalog_db] [-b backup_location ] [-p post_duplication (Y/N)]" 
+      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -m B -u 'SYSDATE-2' -b /DD2500/backup/BELDEV -p Y" 
+      print "\tBackup based duplication, restore database at present time -2 days, No post duplication processing"
+      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -b /DD2500/backup/BELDEV -m B -p N"
+      print "\tBackup based duplication, No post duplication processing"
+      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -m A" 
+      print "\tActive duplication, No  post duplication processing"
+      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -r RMANCAT -p Y" 
+      print "\tActive duplication, post duplication processing, duplicated db registered in RMAN catalog"
       exit 1
       ;;
   esac
 done
 shift "$(($OPTIND -1))"
 
-print "DUPLICATE_MODE is $DUPLICATE_MODE" | tee -a $log
-print "SOURCE_SID is $SOURCE_SID" | tee -a $log
-print "lowerSOURCE_SID is $lowerSOURCE_SID" | tee -a $log
-print "DEST_SID is $DEST_SID" | tee -a $log
-print "RMAN_SID is $RMAN_SID" | tee -a $log
-print "ADM_SID is $ADM_SID" | tee -a $log
-print "BACKUP_LOCATION_ROOT is $BACKUP_LOCATION_ROOT" | tee -a $log
+print "DUPLICATE_MODE is $DUPLICATE_MODE" 
+print "SOURCE_SID is $SOURCE_SID" 
+#print "lowerSOURCE_SID is $lowerSOURCE_SID" 
+print "DEST_SID is $DEST_SID" 
+print "RMAN_SID is $RMAN_SID" 
+print "BACKUP_LOCATION is $BACKUP_LOCATION" 
+print "POST_DUPLICATION is $POST_DUPLICATION" 
+
+#
+# Database cleanup
+#
+typeset -u answer
+answer=''
+while [[ -z "$answer" ]]
+do
+  read answer?"Has any previous database $DEST_SID been cleaned up (Y/N)?" 
+done 
+[[ $answer != 'Y' ]] && { print "Exit $0"; exit; }
 
 # Mandatory parameters
 [[ $DUPLICATE_MODE != $BACKUP_MODE && $DUPLICATE_MODE != $ACTIVE_MODE ]] && { print "Allowed values for DUPLICATE_MODE are $BACKUP_MODE or $ACTIVE_MODE"; exit; }
@@ -165,9 +175,8 @@ $GRID_HOME/bin/asmcmd --privilege sysdba rm -fr +$V_REDO_DISKGROUP/$V_CLONE_DB/C
 # Backup location
 if [[ $DUPLICATE_MODE == $BACKUP_MODE ]]
 then
-  backup_location="$BACKUP_LOCATION_ROOT/$SOURCE_SID"
-  print "backup_location is $backup_location" | tee -a $log
-[[ ! -d $backup_location ]] && { print "Backup location $backup_location not found, exit." | tee -a $err; exit; }
+  print "backup_location is $BACKUP_LOCATION" 
+[[ ! -d $BACKUP_LOCATION ]] && { print "Backup location $backup_location not found, exit." | tee -a $err; exit; }
 fi
 
 #################################################################################################################
@@ -280,10 +289,10 @@ dest_cnxsys="sys/$dest_sid_pwd as sysdba"
 (( instanceUp = $(ps -ef | grep "pmon_$DEST_SID\$" | grep -v grep | wc -l ) ))
 if (( instanceUp == 1 ))
 then
-  print "\nAbout to abort instance $DEST_SID" | tee -a $log
+  print "\nAbout to abort instance $DEST_SID" 
   if [[ $DEBUG  == '' ]]
   then
-    $ORACLE_HOME/bin/sqlplus -s $dest_cnxsys <<! | tee -a $log
+    $ORACLE_HOME/bin/sqlplus -s $dest_cnxsys <<! 
 whenever sqlerror exit sql.sqlcode;
 shutdown abort
 exit
@@ -297,13 +306,11 @@ fi
 # Cleanup
 # ASM files are removed.
 #################################################################################################################
-print '\nASM cleanup' | tee -a $log
-print "ORACLE_SID is $ORACLE_SID"
+#print '\nASM cleanup' 
+#print "ORACLE_SID is $ORACLE_SID"
 #remove_db 
 # until remove_db is sorted out ...
 #ssh grid@flbeoradgqua01 "/home/grid/dup/rmasm4db.sh $ORACLE_SID"
-
-sleep 5
 
 print '\nPassword & pfiles cleanup'
 [[ -f $passwordfile ]] && $DEBUG rm -v $passwordfile
@@ -327,7 +334,7 @@ db_recovery_file_dest_size='$db_recovery_file_dest_size'
 !
 [[ ! -s $init_ora_file ]] && { print "Auxiliary instance $DEST_SID $init_ora_file not created, exit."; exit; }
 print "\nAuxiliary instance $DEST_SID $init_ora_file"
-cat $init_ora_file | tee -a $log
+cat $init_ora_file 
 
 # RMAN setup
 rman_cmd_file="$TMPDIR/duplicate_${SOURCE_SID}_2_${DEST_SID}_${pid}.rman"
@@ -362,7 +369,7 @@ UNTIL TIME "$UNTIL_TIME"
   fi
 
   cat <<! >> $rman_cmd_file
-backup location '$backup_location'
+backup location '$BACKUP_LOCATION'
 spfile
 PARAMETER_VALUE_CONVERT
   '$SOURCE_SID','$DEST_SID'
@@ -403,7 +410,7 @@ NOFILENAMECHECK;
 fi
 
 [[ ! -s $rman_cmd_file ]] && { print "RMAN command file $rman_cmd_file  not created, exit."; exit; }
-print "\nRMAN command file $rman_cmd_file" | tee -a $log
+print "\nRMAN command file $rman_cmd_file" 
 cat $rman_cmd_file
 
 # Summary
@@ -447,7 +454,7 @@ fi
 [[ $DUPLICATE_MODE == $ACTIVE_MODE ]] && $DEBUG $ORACLE_HOME/bin/orapwd file=$passwordfile password=$source_sid_pwd entries=10  force=y
 
 [[ ! -s $passwordfile ]] && { print "Oracle password file $passwordfile empty or not found, exit." | tee -a $err; exit; }
-print "Oracle password file $passwordfile created" | tee -a $log
+print "Oracle password file $passwordfile created" 
 [[ ! -z $DEBUG ]] && ls -l $passwordfile
 
 #################################################################################################################
@@ -496,14 +503,23 @@ then
   exit
 else
   success_msg="Succesfull duplication for $DEST_SID"
-  print "\n$success_msg\n" | tee -a $log
+  print "\n$success_msg\n" 
   date -ud "@$((SECONDS-start))" "+Elapsed Time: %H:%M:%S.%N"
-  mailx -s "$success_msg" $mailx_it_database_list < $log
-  mailx -s "$success_msg" $mailx_it_database_team_list < $log
+  mailx -s "$success_msg" $mailx_it_database_list < $rman_log_file
+  mailx -s "$success_msg" $mailx_it_database_team_list < $rman_log_file
 fi
+
+# Populate /etc/oratab
+echo "$DEST_SID:$ORACLE_HOME:N" >> /etc/oratab
 
 #################################################################################################################
 # Duplication is done
+#################################################################################################################
+
+[[ $POST_DUPLICATION != 'Y' ]] && { print "No post duplication task is performed, exit."; exit; }
+
+#################################################################################################################
+print "Post duplication tasks start here"
 #################################################################################################################
 
 #################################################################################################################
@@ -532,8 +548,8 @@ exit
 (( rc != 0 )) && { print "Error while creating ASM spfile $asmspfile from pfile $tmppfile from spfile, exit." | tee -a $err; exit; }
 
 # move spfile & pfile from $ORACLE_HOME/dbs out of the way
-[[ -s $spfile ]] && mv -v $spfile ${spfile}_${pid} | tee -a $log
-[[ -s $newpfile ]] && mv -v $newpfile ${newpfile}_${pid} | tee -a $log
+[[ -s $spfile ]] && mv -v $spfile ${spfile}_${pid} 
+[[ -s $newpfile ]] && mv -v $newpfile ${newpfile}_${pid} 
 
 # Create init pfile pointing to ASM spfile
 cat <<! > $newpfile
@@ -547,7 +563,7 @@ spfile='$asmspfile'
 #$DEBUG $ORACLE_HOME/bin/orapwd input_file=$passwordfile file=$asmpasswordfile asm=y
 
 # Mount db with ASM pfile
-$ORACLE_HOME/bin/sqlplus -s $dest_cnxsys <<! | tee -a $log
+$ORACLE_HOME/bin/sqlplus -s $dest_cnxsys <<! 
 whenever sqlerror exit sql.sqlcode;
 shutdown abort
 startup pfile='$newpfile'
@@ -563,5 +579,16 @@ exit
 srvctl add database -db $DEST_SID -spfile $asmspfile -oraclehome $ORACLE_HOME -dbname $db_name
 srvctl config database -db $DEST_SID 
 srvctl start database -db $DEST_SID 
+
+# register with rman catalog
+[[ -z $RMAN_SID ]] && exit 0
+
+print "Registration with RMAN catalog not done yet"
+echo "rman  catalog rman/xxxx@$RMAN_SID target /"
+cat <<!
+register database;
+exit
+!
+
 exit 0
 
