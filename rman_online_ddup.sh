@@ -31,9 +31,6 @@
 #... Revision 6   - Date : 02/10/2007  - Jacobs J.
 #...	  Implementation ora_petittest.ksh
 #...
-#... Revision 7   - Date : 29/10/20R19 - Briens P.
-#...      Implementation of PasswordState and adaptation to single instance
-#...
 ############################################################################
 function mail_error {
   datend=`date`
@@ -51,7 +48,7 @@ function mail_error {
   echo ""                                                                                   >>${err}
   echo ""                                                                                   >>${err}
 
-  title="ERROR within a :  '${ORACLE_BASE}/admin/backup/scripts/${pgm}.sh  -d ${SID}  -r RMAN_SID:DDUP'  execution."
+  title="ERROR within a :  '${ORACLE_BASE}/admin/backup/scripts/${pgm}.sh  -d ${SID}  -a ADMIN_SID1:ADMIN_SID2'  execution."
 
   mailx -s "${title}" IT.database@fluxys.net              < ${err}
   mailx -s "${title}" IT.database.team@fluxys.net         < ${err}
@@ -60,7 +57,7 @@ function mail_error {
   rm  ${cmdlog}  1>/dev/null  2>&1
 }
 
-pgm="rman_online_ddup_il1_light"
+pgm="rman_online_ddup"
 
 datstart=`date`
 
@@ -68,8 +65,9 @@ connect_catalog_ok=1
 
 # Security variables.
 processid="$$"
+#ISO_RESULT=/custom/oracle/trace/petittest_${processid}.lst
+#ISO_LOGFILE=/custom/oracle/trace/petittest_${processid}.log
 
-# PasswordState repository
 SECFILE=/u01/app/oracle/scripts/security/reslist_${HOSTNAME}.txt.gpg
 
 msgerr="nihil"
@@ -80,7 +78,7 @@ TBSSPC=N            	# Rman tablespace backup (default NO)
 DEST_DIR="UNKNOWN"      # The directory on which you would like to create this backup.
 DDUP="UNKNOWN"          	# The default DDUP Location
 
-USAGE="Usage : /u01/app/oracle/admin/backup/scripts/${pgm}.sh  -d SID -r RMAN_SID:DDUP"
+USAGE="Usage : /u01/app/oracle/admin/backup/scripts/${pgm}.sh  -d SID -a ADMIN_SID1:ADMIN_SID2"
 
 host=`hostname -s`
 OSname=`uname`
@@ -105,7 +103,7 @@ cmdlog="UNKNOWN"
 # Check database and environment :
 # ------------------------------
 
-set -- `getopt d:r:t  $*`
+set -- `getopt d:a:t  $*`
 
 if [ ${?} -ne 0 ] 
 then
@@ -132,8 +130,8 @@ else
                 SID=`echo ${2} | tr '[:lower:]' '[:upper:]'`
 		shift 2
 		;;
-        -r)
-                RMAN=`echo ${2} | tr '[:lower:]' '[:upper:]'`
+        -a)
+                ADM_SID=`echo ${2} | tr '[:lower:]' '[:upper:]'`
                 shift 2
                 ;;
 	--)
@@ -191,9 +189,18 @@ oktesttest_connect="nihil"
 rmanowner="RMANCAT"
 oktestrman="nihil"
 
-RMAN_SID=`echo $RMAN|cut -d: -f1`
+ADM_SID1=`echo $ADM_SID|cut -d: -f1`
 
-DDUP=`echo $RMAN|cut -d: -f2`
+ADM_SID2=`echo $ADM_SID|cut -d: -f2`
+
+# Get DZDBA info for ADM_SID1
+
+oktestadm1dzdba=`gpg -qd $SECFILE | grep -i "$ADM_SID1:DZDBA" | cut -d ":" -f3`
+[[ -z $oktestadm1dzdba ]] && { echo "oktestadm1dzdba not defined, exit."; exit; }
+
+# Get DZDBA info for ADM_SID2
+oktestadm2dzdba=`gpg -qd $SECFILE | grep -i "$ADM_SID2:DZDBA" | cut -d ":" -f3`
+[[ -z $oktestadm2dzdba ]] && { echo "oktestadm2dzdba not defined, exit."; exit; }
 
 # Get SYS info for current db  (SID)
 oktestsys=`gpg -qd $SECFILE | grep -i "$ORACLE_SID_BASE:SYS:" | cut -d ":" -f3`
@@ -203,9 +210,72 @@ oktestsys=`gpg -qd $SECFILE | grep -i "$ORACLE_SID_BASE:SYS:" | cut -d ":" -f3`
 oktesttest_connect=`gpg -qd $SECFILE | grep -i "$ORACLE_SID_BASE:TEST_CONNECT" | cut -d ":" -f3`
 [[ -z $oktesttest_connect ]] && { echo "oktesttest_connect not defined, exit."; exit; }
 
-#RMAN_SID=`cat /var/tmp/database_info_${SID}.log|cut -d"|" -f1`
+#
+# Test to see if ADM_SID1 is running :
+#-------------------------------------
+test_connect="/custom/oracle/trace/test_connect_${processid}_${ADM_SID1}.trc"
 
-#DDUP=`cat /var/tmp/database_info_${SID}.log|cut -d"|" -f2`
+sqlplus /nolog 1>${test_connect} 2>&1  <<EOF
+connect test_connect/${oktesttest_connect}@${ADM_SID1};
+EOF
+
+CONNECTED=`cat ${test_connect} | grep 'Connected' | cut -f 2 -d " "`
+rm ${test_connect} 1>/dev/null 2>&1
+
+if [ ${CONNECTED:-0} != 0 ] ;
+then
+          ADMIN_INSTANCE=${ADM_SID1}
+	  oktestadmdzdba=${oktestadm1dzdba}
+else
+#
+# Test to see if ADM_SID2 is running :
+# ------------------------------------
+           test_connect="/custom/oracle/trace/test_connect_${processid}_${ADM_SID2}.trc"
+
+           sqlplus /nolog 1>${test_connect} 2>&1  <<EOF
+connect test_connect/${oktesttest_connect}@${ADM_SID2};
+EOF
+
+           CONNECTED=`cat ${test_connect} | grep 'Connected' | cut -f 2 -d " "`
+
+           rm ${test_connect} 1>/dev/null 2>&1
+
+           if [ ${CONNECTED:-0} != 0 ] ;
+           then
+                        ADMIN_INSTANCE=${ADM_SID2}
+			oktestadmdzdba=${oktestadm2dzdba}
+           else
+                        echo ""                                                                                                      >>${log}
+                        echo "============================================================================="                         >>${log}
+                        echo ""                                                                                                      >>${log}
+                        echo "  ADMIN Instance ${ADM_SID1} and instance  ${ADM_SID2}  were not running."                               >>${log}
+                        echo ""                                                                                                      >>${log}
+                        echo "============================================================================="                         >>${log}
+                        echo ""                                                                                                      >>${log}
+                        mail_error
+                        exit 1
+           fi
+fi
+
+sqlplus -s /nolog <<EOF
+whenever sqlerror exit rollback;
+connect dzdba/${oktestadmdzdba}@${ADMIN_INSTANCE}
+set feedback off;
+set verify off;
+set heading off;
+set echo off;
+set termout off;
+set pages 0;
+set trimspool on;
+spool /var/tmp/database_info_${SID}.log;
+select nvl(rman_sid,'UNKNOWN')||'|'||nvl(backup_location,'UNKNOWN') from databases where SID = '${ORACLE_SID_BASE}' and server_name like '%|'||upper('$host')||'|%';
+spool off;
+exit;
+EOF
+
+RMAN_SID=`cat /var/tmp/database_info_${SID}.log|cut -d"|" -f1`
+
+DDUP=`cat /var/tmp/database_info_${SID}.log|cut -d"|" -f2`
 
 if [ "${RMAN_SID}" != "UNKNOWN" ] ;
 then
@@ -331,17 +401,16 @@ echo "exit;"                                                                    
 
 ${ORACLE_HOME}/bin/sqlplus -s /nolog @${DIR_SQL}/info_${SID}.sql   >> /dev/null
 rcsps=$?
-
 rm ${DIR_SQL}/info_${SID}.sql
 
 rcserr=`grep -c "ORA-" ${DIR_BACKUP_DATA}/${SID}_backup_info.txt`
 if [ ${rcserr} -eq 0 ] && [ ${rcsps} -eq 0 ];
 then
-        STANDBY_DB=$(grep -c 'STANDBY' ${DIR_BACKUP_DATA}/${SID}_backup_info.txt)
+        STANDBY_DB=`grep -c "STANDBY" ${DIR_BACKUP_DATA}/${SID}_backup_info.txt`
 fi
 
-# Look for an already running RMAN backup for db to backup
 swerr=1
+
 while [ ${swerr} -gt 0 ] ;
 do
           RESULT=`ps -ef | grep "rman target" | grep "@${ORACLE_SID_BASE}" | grep -v grep`
@@ -438,6 +507,62 @@ mv  ${err}-1     ${err}-2     1>/dev/null  2>&1
 mv  ${err}       ${err}-1     1>/dev/null  2>&1
 
 
+#
+# Check to see if any tablespace are in backup mode and if so ==> ends the backup mode :
+# ------------------------------------------------------------------------------------
+
+#if [ ${STANDBY_DB} -eq 0 ] ;
+#then
+#          echo ""                                                                                               >>${cmdlog}
+#          echo ""                                                                                               >>${cmdlog}
+#          echo ""                                                                                               >>${cmdlog}
+#          echo "        Ends  'backup mode'  on any tablespace with a PL/SQL procedure :"                       >>${cmdlog}
+#          echo ""                                                                                               >>${cmdlog}
+#
+#          ${ORACLE_HOME}/bin/sqlplus -s "sys/${oktestsys}@${ORACLE_SID_BASE} as sysdba" @${DIR_SQL}/check_end_backup.sql  >>${cmdlog}
+#
+#          echo ""                                                                                               >>${cmdlog}
+#          echo ""                                                                                               >>${cmdlog}
+#
+#          if [ "${RMAN_SID}" != "UNKNOWN" ] ;
+#          then
+##
+## Check to see if any tablespace for this DB has to be put offline before backup (skip tablespaces) :
+## -------------------------------------------------------------------------------------------------
+#
+#            echo ""                                                                                                                >>${cmdlog}
+#            echo ""                                                                                                                >>${cmdlog}
+#            echo ""                                                                                                                >>${cmdlog}
+#            echo " Put tablespaces offline (if present in dzdba.backup_offline_tablespaces@${RMAN_SID}) with a PL/SQL procedure :" >>${cmdlog}
+#            echo ""                                                                                                                >>${cmdlog}
+#
+## Initialize the result file if it already exists :
+## -----------------------------------------------
+#            echo "exit;"                                                     >${DIR_SQL}/put_tablespace_offline_${SID}.sql
+#
+## Construct the SQL-file to put the tablespaces offline :
+## -----------------------------------------------------
+#
+#
+#            rm  ${DIR_SQL}/run_check_offline_tablespaces.sql  1>/dev/null  2>&1
+#
+#            echo "WHENEVER SQLERROR EXIT;"                                 >${DIR_SQL}/run_check_offline_tablespaces.sql
+#            echo "connect dzdba/${oktestdzdba_adm}@${RMAN_SID}"           >>${DIR_SQL}/run_check_offline_tablespaces.sql
+#            echo "start ${DIR_SQL}/check_offline_tablespaces.sql ${SID}"  >>${DIR_SQL}/run_check_offline_tablespaces.sql
+#
+#            ${ORACLE_HOME}/bin/sqlplus /nolog  @${DIR_SQL}/run_check_offline_tablespaces.sql                                       >>${cmdlog}
+#
+#            rm  ${DIR_SQL}/run_check_offline_tablespaces.sql  1>/dev/null  2>&1
+#
+## Put the tablespaces offline :
+## ---------------------------
+#            ${ORACLE_HOME}/bin/sqlplus -s "sys/${oktestsys}@${ORACLE_SID_BASE} as sysdba" @${DIR_SQL}/put_tablespace_offline_${SID}.sql      >>${cmdlog}
+#
+#
+#            echo ""                                                                                                                >>${cmdlog}
+#            echo ""                                                                                                                >>${cmdlog}
+#          fi
+#fi
 
 #
 # Determine if there's a standby database as archive destination:
@@ -497,7 +622,6 @@ EOF
           rm ${DIR_BACKUP_DATA}/needed_log.lst
 fi
 
-echo "rman_online_before_redo is $rman_online_before_redo"
 
 # Copy  initXXX.ora, spfileXXX.ora (content only)  and  orapwXXX  files to backup directory :            
 # -----------------------------------------------------------------------------------------
@@ -507,8 +631,11 @@ PFILE=${ORACLE_HOME}/dbs/init${ORACLE_SID}.ora
 cp ${PFILE}		 	            ${DIR_BACKUP_DATA}               1>/dev/null 2>&1
 
 
-echo ""                                         >>${cmdlog}
-sqlplus -s /nolog  1>>${cmdlog}  2>>${cmdlog}   <<EOF  
+if [ "`echo ${oracle_version} | cut -c1-1`" != "8" ] ;
+then
+          echo ""                                         >>${cmdlog}
+
+          sqlplus -s /nolog  1>>${cmdlog}  2>>${cmdlog}   <<EOF  
 connect sys/${oktestsys} as sysdba
 set feedback off;
 set verify off;
@@ -519,7 +646,9 @@ set pages 0;
 create pfile='${DIR_BACKUP_DATA}/spfile${ORACLE_SID_BASE}.content' from spfile;
 exit;
 EOF
-echo ""                                         >>${cmdlog}
+
+          echo ""                                         >>${cmdlog}
+fi
 
 cp ${ORACLE_HOME}/dbs/orapw${ORACLE_SID}    ${DIR_BACKUP_DATA}            
 
@@ -610,7 +739,7 @@ then
 
               if [ "${RMAN_SID}" != "UNKNOWN" ] ;
               then
-                ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} catalog ${rmanowner}/${oktestrman}@${RMAN_SID} cmdfile ${cmd}  >>${cmdlog}
+                ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} rcvcat ${rmanowner}/${oktestrman}@${RMAN_SID} cmdfile ${cmd}  >>${cmdlog}
               else
                 ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} nocatalog cmdfile ${cmd}                                      >>${cmdlog}
               fi
@@ -627,7 +756,7 @@ then
 
             if [ "${RMAN_SID}" != "UNKNOWN" ] ;
             then
-              ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} catalog ${rmanowner}/${oktestrman}@${RMAN_SID} cmdfile ${cmd}  >>${cmdlog}
+              ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} rcvcat ${rmanowner}/${oktestrman}@${RMAN_SID} cmdfile ${cmd}  >>${cmdlog}
             else
               ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} nocatalog cmdfile ${cmd}                                      >>${cmdlog}
             fi
@@ -655,10 +784,10 @@ then
             while [ ${number_of_channels} -gt ${channel_number} ]
             do
               let "channel_number=${channel_number}+1"
-              echo "   allocate channel ch${channel_number}_backup_${SID} type disk format '${DIR_BACKUP_DATA}/INCL1_%d_%U' ;"     >>${cmd}
+              echo "   allocate channel ch${channel_number}_backup_${SID} type disk format '${DIR_BACKUP_DATA}/FULLON_%d_%U' ;"     >>${cmd}
             done
-            echo "   backup section size 4G incremental level 1"                                                  >>${cmd}  
-            echo "   filesperset 40"                                                                               >>${cmd}  
+            echo "   backup section size 2G incremental level 0"                                                  >>${cmd}  
+ #          echo "   filesperset 1"                                                                               >>${cmd}  
             echo "   skip offline"                                                                                >>${cmd}
             echo "   tag ${SID}_db_online"                                                                        >>${cmd}
             echo "   (database) ;"                                                                                >>${cmd}
@@ -672,7 +801,7 @@ then
 
             if [ "${RMAN_SID}" != "UNKNOWN" ] ;
             then
-              ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} catalog ${rmanowner}/${oktestrman}@${RMAN_SID} cmdfile ${cmd} >>${cmdlog}
+              ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} rcvcat ${rmanowner}/${oktestrman}@${RMAN_SID} cmdfile ${cmd} >>${cmdlog}
             else
               ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} nocatalog cmdfile ${cmd}                                     >>${cmdlog}
             fi
@@ -709,7 +838,7 @@ EOF
             fi
 
             echo "   release channel ch_backup_${SID} ;"                                                       >>${cmd}
-            echo "   allocate channel ch_backup_${SID} type disk format '${DIR_BACKUP_DATA}/INCL1_ctl_%d_%U' ;" >>${cmd}
+            echo "   allocate channel ch_backup_${SID} type disk format '${DIR_BACKUP_DATA}/FULLON_ctl_%d_%U' ;" >>${cmd}
             echo "   backup"                                                                                     >>${cmd}
             echo "   tag ${SID}_ctl_online"                                                                      >>${cmd}
             echo "   (current controlfile);"                                                                     >>${cmd}
@@ -721,7 +850,7 @@ EOF
 
             if [ "${RMAN_SID}" != "UNKNOWN" ] ;
             then
-              ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} catalog ${rmanowner}/${oktestrman}@${RMAN_SID} cmdfile ${cmd} >>${cmdlog}
+              ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} rcvcat ${rmanowner}/${oktestrman}@${RMAN_SID} cmdfile ${cmd} >>${cmdlog}
             else
               ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} nocatalog cmdfile ${cmd}                                     >>${cmdlog}
             fi
@@ -738,13 +867,13 @@ EOF
                 echo ""                                                                                                 >${cmd}
               fi
               echo " run {"                                                                                            >>${cmd}
-              echo "   allocate channel ch_backup_${SID} type disk format '${DIR_BACKUP_DATA}/INCL1_tbs_%d_%U' ;"     >>${cmd}
-              echo "   backup section size 4G incremental level 1"                                                     >>${cmd}  
-              echo "   filesperset 40"                                                                                  >>${cmd}  
+              echo "   allocate channel ch_backup_${SID} type disk format '${DIR_BACKUP_DATA}/FULLON_tbs_%d_%U' ;"     >>${cmd}
+              echo "   backup section size 2G incremental level 0"                                                     >>${cmd}  
+ #            echo "   filesperset 1"                                                                                  >>${cmd}  
               echo "   tag ${SID}_tbs_${tabspace}_online"                                                              >>${cmd}
               echo "   (tablespace ${tabspace}) ;"                                                                     >>${cmd}
               echo "   release  channel ch_backup_${SID} ;"                                                            >>${cmd}
-              echo "   allocate channel ch_backup_${SID} type disk format '${DIR_BACKUP_DATA}/INCL1_ctl_%d_%U' ;"     >>${cmd}
+              echo "   allocate channel ch_backup_${SID} type disk format '${DIR_BACKUP_DATA}/FULLON_ctl_%d_%U' ;"     >>${cmd}
               echo "   backup"                                                                                         >>${cmd}
               echo "   tag ${SID}_ctl_online"                                                                          >>${cmd}
               echo "   (current controlfile);"                                                                         >>${cmd}
@@ -753,7 +882,7 @@ EOF
 
               if [ "${RMAN_SID}" != "UNKNOWN" ] ;
               then
-                ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} catalog ${rmanowner}/${oktestrman}@${RMAN_SID} cmdfile ${cmd} >>${cmdlog}
+                ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} rcvcat ${rmanowner}/${oktestrman}@${RMAN_SID} cmdfile ${cmd} >>${cmdlog}
               else
                 ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} nocatalog cmdfile ${cmd}                                     >>${cmdlog}
               fi
@@ -806,13 +935,54 @@ EOF
 
           if [ "${RMAN_SID}" != "UNKNOWN" ] ;
           then
-            ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} catalog ${rmanowner}/${oktestrman}@${RMAN_SID} cmdfile ${cmd}    >>${cmdlog}
+            ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} rcvcat ${rmanowner}/${oktestrman}@${RMAN_SID} cmdfile ${cmd}    >>${cmdlog}
           else
             ${ORACLE_HOME}/bin/rman target sys/${oktestsys}@${SID} nocatalog cmdfile ${cmd}                                        >>${cmdlog}
           fi
 
+
+          if [ "${RMAN_SID}" != "UNKNOWN" ] ;
+          then
+            echo "Kuku !"
+#
+# Check to see if any tablespace for this DB has to be put online after backup (skipped tablespaces) :
+# --------------------------------------------------------------------------------------------------
+
+#           echo ""                                                                                                        >>${cmdlog}
+#           echo ""                                                                                                        >>${cmdlog}
+#           echo ""                                                                                                        >>${cmdlog}
+#           echo " Puts tablespace online (if present in dzdba.backup_offline_tablespaces@${RMAN_SID}) with a PL/SQL procedure :" >>${cmdlog}
+#           echo ""                                                                                                        >>${cmdlog}
+
+
+
+# Initialize the result file if it already exists :
+# -----------------------------------------------
+#           echo "exit;"                                                     >${DIR_SQL}/put_tablespace_online_${SID}.sql
+
+
+# Construct the SQL-file to put the tablespaces online :
+# -----------------------------------------------------
+
+#           rm  ${DIR_SQL}/run_check_online_tablespaces.sql  1>/dev/null  2>&1
+
+#           echo "WHENEVER SQLERROR EXIT;"                                >${DIR_SQL}/run_check_online_tablespaces.sql
+#           echo "connect dzdba/${oktestdzdba_adm}@${RMAN_SID}"          >>${DIR_SQL}/run_check_online_tablespaces.sql
+#           echo "start ${DIR_SQL}/check_online_tablespaces.sql ${SID}"  >>${DIR_SQL}/run_check_online_tablespaces.sql
+
+#           ${ORACLE_HOME}/bin/sqlplus /nolog  @${DIR_SQL}/run_check_online_tablespaces.sql                                       >>${cmdlog}
+
+#           rm  ${DIR_SQL}/run_check_online_tablespaces.sql  1>/dev/null  2>&1
+
+
+# Put the tablespaces online :
+# --------------------------
+#           ${ORACLE_HOME}/bin/sqlplus -s "sys/${oktestsys}@${SID} as sysdba" @${DIR_SQL}/put_tablespace_online_${SID}.sql      >>${cmdlog}
+          fi
+
           echo ""                                                                                                        >>${cmdlog}
           echo ""                                                                                                        >>${cmdlog}
+
 
           rcserr=`grep -c "= ERROR MESSAGE STACK FOLLOWS =" ${cmdlog}`
           if [ ${rcserr} -gt 0 ]
@@ -1019,7 +1189,7 @@ then
 #
 # Cleanup the recovery catalog :
 # ----------------------------
-	    ${ORACLE_BASE}/admin/backup/scripts/rman_cleanup_catalog_light.sh -d ${SID} -r $RMAN
+	    ${ORACLE_BASE}/admin/backup/scripts/rman_cleanup_catalog.sh -d ${SID} -a ${ADM_SID}
 	  fi
 
 	  exit 0

@@ -13,9 +13,6 @@
 #... Revision 2.0 - Date   : 03/10/2007     Author: Jacobs J.
 #...      Implement ora_petittest.ksh, password retrieval
 #...
-#... Revision 3.0 - Date   : 05/11/2019     Author: Briens P.
-#...      Implement of PasswordState for password retrieval
-#...
 ############################################################################
 function mail_error {
   datend=`date`
@@ -33,7 +30,7 @@ function mail_error {
   echo ""                                                                                   >>${err}
   echo ""                                                                                   >>${err}
 
-  title="ERROR within a :  '${ORACLE_BASE}/admin/backup/scripts/${pgm}.sh  -d ${SID}  -r RMAN_SID:DDUP'  execution."
+  title="ERROR within a :  '${ORACLE_BASE}/admin/backup/scripts/${pgm}.sh  -d ${SID}  -a ADMIN_SID1:ADMIN_SID2'  execution."
 
   mailx -s "${title}" IT.database@fluxys.net              < ${err}
   mailx -s "${title}" IT.database.team@fluxys.net         < ${err}
@@ -42,17 +39,24 @@ function mail_error {
   rm  ${cmdlog}  1>/dev/null  2>&1
 }
 
-pgm="rman_config_ddup_light"
+
+pgm="rman_config_ddup"
+
+
 
 datstart=`date`
+
+
 
 cmdlog="UNKNOWN"
 connect_catalog_ok=1
 
+
 # Security variables.
 processid="$$"
+#ISO_RESULT=/custom/oracle/trace/petittest_${processid}.lst
+#ISO_LOGFILE=/custom/oracle/trace/petittest_${processid}.log
 
-# PasswordState repository
 SECFILE=/u01/app/oracle/scripts/security/reslist_${HOSTNAME}.txt.gpg
 
 msgerr="nihil"
@@ -63,7 +67,7 @@ RMAN_SID="UNKNOWN"          # The default RMAN recovery catalog database
 DDUP="UNKNOWN"              # The default DDUP Location
 
 
-USAGE="Usage : /u01/app/oracle/admin/backup/scripts/${pgm}.sh  -d SID -r RMANCAT_SID:DDUP"
+USAGE="Usage : /u01/app/oracle/admin/backup/scripts/${pgm}.sh  -d SID -a ADMIN_SID1:ADMIN_SID2"
 
 host=`hostname -s`
 
@@ -79,7 +83,7 @@ rm ${err}    1>/dev/null  2>&1
 # Check database environment :
 # --------------------------
 
-set -- `getopt d:r: $*`
+set -- `getopt d:a: $*`
 
 if [ ${?} -ne 0 ] ;
 then                                                                                                            
@@ -103,8 +107,8 @@ do
                 SID=`echo ${2} | tr '[:lower:]' '[:upper:]'`
                 shift 2
                 ;;
-        -r)
-                RMAN=`echo ${2} | tr '[:lower:]' '[:upper:]'`
+        -a)
+                ADM_SID=`echo ${2} | tr '[:lower:]' '[:upper:]'`
                 shift 2
                 ;;
         --)
@@ -160,21 +164,113 @@ oktestrman="nihil"
 oktestadmdzdba="nihil"
 rmanowner="RMANCAT"
 
-RMAN_SID=`echo $RMAN|cut -d: -f1`
-echo "RMAN_SID : $RMAN_SID"
-DDUP=`echo $RMAN|cut -d: -f2`
-echo "DDUP : $DDUP"
+ADM_SID1=`echo $ADM_SID|cut -d: -f1`
+
+ADM_SID2=`echo $ADM_SID|cut -d: -f2`
 
 # Get TEST_CONNECT info for current db  (SID)
 #oktesttest_connect=`gpg -qd $SECFILE | grep -w $ORACLE_SID_BASE | grep -i TEST_CONNECT | cut -d ":" -f3`
 oktesttest_connect=`gpg -qd $SECFILE | grep -i "$ORACLE_SID_BASE:TEST_CONNECT" | cut -d ":" -f3`
 [[ -z $oktesttest_connect ]] && { echo "oktesttest_connect is not defined, exit."; exit; }
 
+#/usr/local/bin/ora_petittest.ksh ${ORACLE_SID_BASE} DB TEST_CONNECT ${ADM_SID1} ${processid}
+#rcsps=$?
+#if [ ${rcsps} -ne 0 ] ;
+#then
+#          if [ ${rcsps} -eq 1 ] ;
+#          then
+#            echo "Wrong usage of ora_petittest.ksh (first try) -- review parameters"                          >> ${log}
+#            cat ${ISO_LOGFILE}                                                                                >> ${log}
+#            mail_error
+#            exit 1
+#          fi
+#          if [ ${rcsps} -eq 2 ] ;
+#          then
+#            echo "Problem looking for information in administration databases"                                >> ${log}
+#            cat ${ISO_LOGFILE}                                                                                >> ${log}
+#            mail_error
+#            exit 1
+#          fi
+#else
+#          oktesttest_connect=`cat ${ISO_RESULT}`
+#          rm -f ${ISO_RESULT}
+#fi
+
+#
+# Test to see if ADM_SID1 is running :
+#-------------------------------------
+test_connect="/custom/oracle/trace/test_connect_${ADM_SID1}.trc"
+
+sqlplus /nolog 1>${test_connect} 2>&1  <<EOF
+connect test_connect/${oktesttest_connect}@${ADM_SID1};
+EOF
+
+CONNECTED=`cat ${test_connect} | grep 'Connected' | cut -f 2 -d " "`
+rm ${test_connect} 1>/dev/null 2>&1
+
+if [ ${CONNECTED:-0} != 0 ] ;
+then
+          ADMIN_INSTANCE=${ADM_SID1}
+else
+#
+# Test to see if ADM_SID2 is running :
+# ------------------------------------
+           test_connect="/custom/oracle/trace/test_connect_${ADM_SID2}.trc"
+
+           sqlplus /nolog 1>${test_connect} 2>&1  <<EOF
+connect test_connect/${oktesttest_connect}@${ADM_SID2};
+EOF
+
+           CONNECTED=`cat ${test_connect} | grep 'Connected' | cut -f 2 -d " "`
+
+           rm ${test_connect} 1>/dev/null 2>&1
+
+           if [ ${CONNECTED:-0} != 0 ] ;
+           then
+                        ADMIN_INSTANCE=${ADM_SID2}
+           else
+                        echo ""                                                                                                      >>${log}
+                        echo "============================================================================="                         >>${log}
+                        echo ""                                                                                                      >>${log}
+                        echo "  ADMIN Instance ${ADM_SID1} and instance  ${ADM_SID2}  were not running."                               >>${log}
+                        echo ""                                                                                                      >>${log}
+                        echo "============================================================================="                         >>${log}
+                        echo ""                                                                                                      >>${log}
+                        mail_error
+                        exit 1
+           fi
+fi
+
+
+# Get DZDBA info for ADMIN_INSTANCE
+#oktestadmdzdba=`gpg -qd $SECFILE | grep -i $ADMIN_INSTANCE | grep -i DZDBA | cut -d ":" -f3`
+oktestadmdzdba=`gpg -qd $SECFILE | grep -i "$ADMIN_INSTANCE:DZDBA" | cut -d ":" -f3`
+[[ -z $oktestadmdzdba ]] && { echo "oktestadmdzdba is not defined, exit."; exit; }
+
 # Get SYS info for current db  (SID)
 #oktestsys=`gpg -qd $SECFILE | grep -w $ORACLE_SID_BASE | grep -w SYS | cut -d ":" -f3`
 oktestsys=`gpg -qd $SECFILE | grep -i "$ORACLE_SID_BASE:SYS:" | cut -d ":" -f3`
 [[ -z $oktestsys ]] && { echo "oktestsys is not defined, exit."; exit; }
 
+sqlplus -s /nolog <<EOF
+whenever sqlerror exit rollback;
+connect dzdba/${oktestadmdzdba}@${ADMIN_INSTANCE}
+set feedback off;
+set verify off;
+set heading off;
+set echo off;
+set termout off;
+set pages 0;
+set trimspool on;
+spool /var/tmp/database_info_${SID}.log;
+select nvl(rman_sid,'UNKNOWN')||'|'||nvl(backup_location,'UNKNOWN') from databases where SID = '${ORACLE_SID_BASE}' and server_name like '%|'||upper('$host')||'|%';
+spool off;
+exit;
+EOF
+
+RMAN_SID=`cat /var/tmp/database_info_${SID}.log|cut -d"|" -f1`
+
+DDUP=`cat /var/tmp/database_info_${SID}.log|cut -d"|" -f2`
 if [ "${DDUP}" = "UNKNOWN" ] ;
 then
     msgerr=" STOPPED  -  no DDUP location found in ADMIN database"
@@ -186,7 +282,7 @@ then
     echo ""                                                                                                 >>${log}
     echo "============================================================================="                    >>${log}
     echo ""                                                                                                 >>${log}
-    mail_error
+#   mail_error
     exit 1
 else
     if [ ! -d /${DDUP}/backup/${SID} ]
@@ -200,7 +296,7 @@ else
       echo ""                                                                                               >>${log}
       echo "============================================================================="                  >>${log}
       echo ""                                                                                               >>${log}
-      mail_error
+#     mail_error
       exit 1
     fi
 fi
@@ -211,10 +307,34 @@ then
 # oktestrman=`gpg -qd $SECFILE | grep -i $RMAN_SID | grep -i ${rmanowner} | cut -d ":" -f3`
   oktestrman=`gpg -qd $SECFILE | grep -i "$RMAN_SID:$rmanowner" | cut -d ":" -f3`
   [[ -z $oktestrman ]] && { echo "oktestrman is not defined, exit."; exit; }
+#
+#        /usr/local/bin/ora_petittest.ksh ${RMAN_SID} DB ${rmanowner} ${ADMIN_INSTANCE} ${processid}
+#        rcsps=$?
+#        if [ ${rcsps} -ne 0 ] ;
+#        then
+#          if [ ${rcsps} -eq 1 ] ;
+#          then
+#            echo "Wrong usage of ora_petittest.ksh (first try) -- review parameters"                          >> ${log}
+#            cat ${ISO_LOGFILE}                                                                                >> ${log}
+#	    mail_error
+#	    exit 1
+#          fi
+#          if [ ${rcsps} -eq 2 ] ;
+#          then
+#            echo "Problem looking for information in administration databases"                                >> ${log}
+#            cat ${ISO_LOGFILE}                                                                                >> ${log}
+#            mail_error
+#	    exit 1
+#          fi
+#        else
+#          oktestrman=`cat ${ISO_RESULT}`
+#          rm -f ${ISO_RESULT}
+#        fi
+
 fi
 
 # Clean up the LOGFILE of the security procedure
-[[ -f  ${ISO_LOGFILE} ]] && rm -f ${ISO_LOGFILE}
+rm -f ${ISO_LOGFILE}
 
 #
 # Export the backup directory and the actual oracle sid :
