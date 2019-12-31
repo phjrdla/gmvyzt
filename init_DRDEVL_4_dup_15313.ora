@@ -1,0 +1,8 @@
+db_name=DRDEVL
+db_unique_name=DRDEVL
+compatible=18.7.0
+control_files='+DATA/DRDEVL/CONTROLFILE/control01.ctl','+FRA/DRDEVL/CONTROLFILE/control02.ctl'
+remote_login_passwordfile='EXCLUSIVE'
+db_create_file_dest='+DATA'
+db_recovery_file_dest='+FRA'
+db_recovery_file_dest_size='20G'

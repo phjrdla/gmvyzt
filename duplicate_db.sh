@@ -10,9 +10,12 @@
 #   Auxliliary instance startup
 #   Database duplication
 #   Post duplication actions
-
 this_script=$0
 pgm=${pgm%%.*}
+
+# A few basinc environment checks
+[[ ${ORACLE_BASE:='null'} = 'null' ]] && { print "ORACLE_BASE is not defined, exit."; exit; }
+[[ ${ORACLE_HOME:='null'} = 'null' ]] && { print "ORACLE_HOME is not defined, exit."; exit; }
 
 # process number, to name files uniquely 
 pid=$$
@@ -55,7 +58,7 @@ typeset -u UNTIL_TIME=''
 typeset -u POST_DUPLICATION='N'
 BACKUP_LOCATION=''
 
-while getopts 'hm:s:d:r:a:b:u:p' OPTION
+while getopts 'hm:s:d:rbupx:y:' OPTION
 do
   case "$OPTION" in
     s)
@@ -79,17 +82,23 @@ do
       UNTIL_TIME=$OPTARG
       ;;
     p)
-      POST_DUPLICATION='N'
+      POST_DUPLICATION=$OPTARG
+      ;;
+    x)
+      SOURCE_SID_PWD=$OPTARG
+      ;;
+    y)
+      DEST_SID_PWD=$OPTARG
       ;;
     h)
-      print "script usage: $(basename $0) [-h] [-m duplicate_mode (B/A)] [-s source_db] [-d dest_db] [-r RMAN_catalog_db] [-b backup_location ] [-p post_duplication (Y/N)]" 
-      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -m B -u 'SYSDATE-2' -b /DD2500/backup/BELDEV -p Y" 
+      print "script usage: $(basename $0) [-h] [-m duplicate_mode (B/A)] [-s source_db] [-d dest_db] [-r RMAN_catalog_db] [-b backup_location ] [-p post_duplication (Y/N)] -x source_pass -y dest_pass" 
+      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -m B -u 'SYSDATE-2' -b /DD2500/backup/BELDEV -p Y -x syspwd1 -y syspwd2" 
       print "\tBackup based duplication, restore database at present time -2 days, No post duplication processing"
-      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -b /DD2500/backup/BELDEV -m B -p N"
+      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -b /DD2500/backup/BELDEV -m B -p N -x syspwd1 -y syspwd2"
       print "\tBackup based duplication, No post duplication processing"
-      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -m A" 
+      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -m A -x syspwd1 -y syspwd2" 
       print "\tActive duplication, No  post duplication processing"
-      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -r RMANCAT -p Y" 
+      print "Exemple :  $(basename $0) -s BELDEV -d BELQUA -r RMANCAT -p Y -x syspwd1 -y syspwd2" 
       print "\tActive duplication, post duplication processing, duplicated db registered in RMAN catalog"
       exit 1
       ;;
@@ -97,10 +106,13 @@ do
 done
 shift "$(($OPTIND -1))"
 
+print "ORACLE_HOME is $ORACLE_HOME" 
 print "DUPLICATE_MODE is $DUPLICATE_MODE" 
 print "SOURCE_SID is $SOURCE_SID" 
+print "SOURCE_SID_PWD is $SOURCE_SID_PWD" 
 #print "lowerSOURCE_SID is $lowerSOURCE_SID" 
 print "DEST_SID is $DEST_SID" 
+print "DEST_SID_PWD is $DEST_SID_PWD" 
 print "RMAN_SID is $RMAN_SID" 
 print "BACKUP_LOCATION is $BACKUP_LOCATION" 
 print "POST_DUPLICATION is $POST_DUPLICATION" 
@@ -120,54 +132,6 @@ done
 [[ $DUPLICATE_MODE != $BACKUP_MODE && $DUPLICATE_MODE != $ACTIVE_MODE ]] && { print "Allowed values for DUPLICATE_MODE are $BACKUP_MODE or $ACTIVE_MODE"; exit; }
 [[ -z $SOURCE_SID && $DUPLICATE_MODE != $ACTIVE_MODE ]] && { print "SOURCE_SID is mandatory for active duplication, exit."; exit; }
 [[ -z $DEST_SID ]] && { print "DEST_SID is mandatory, exit."; exit; }
-
-#################################################################################################################
-# Function to clean ASM files
-V_CLONE_DB=$DEST_SID
-V_DATA_DISKGROUP=DATA
-V_ARCHIVE_DISKGROUP=FRA
-V_REDO_DISKGROUP=REDO
-
-# can't get it to work ....
-function remove_db
-{
-print "function remove_db invoked ..."
-#export GRID_HOME=/u01/app/18.0.0/grid
-GRID_HOME=/u01/app/18.0.0/grid
-ORACLE_SID=+ASM
-LD_LIBRARY_PATH=$GRID_HOME/lib
-PATH=/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin:$GRID_HOME/bin
-echo asmcmd --privilege sysdba ls +$V_DATA_DISKGROUP/$V_CLONE_DB
-$GRID_HOME/bin/asmcmd --privilege sysdba ls +$V_DATA_DISKGROUP/$V_CLONE_DB
-echo asmcmd --privilege sysdba ls +$V_ARCHIVE_DISKGROUP/$V_CLONE_DB
-$GRID_HOME/bin/asmcmd --privilege sysdba ls +$V_ARCHIVE_DISKGROUP/$V_CLONE_DB
-echo asmcmd --privilege sysdba ls +$V_REDO_DISKGROUP/$V_CLONE_DB
-$GRID_HOME/bin/asmcmd --privilege sysdba ls +$V_REDO_DISKGROUP/$V_CLONE_DB
-
-echo asmcmd --privilege sysdba rm -fr +$V_DATA_DISKGROUP/$V_CLONE_DB/DATAFILE
-$GRID_HOME/bin/asmcmd --privilege sysdba rm -fr +$V_DATA_DISKGROUP/$V_CLONE_DB/DATAFILE
-echo asmcmd --privilege sysdba rm -fr +$V_DATA_DISKGROUP/$V_CLONE_DB/TEMPFILE
-$GRID_HOME/bin/asmcmd --privilege sysdba rm -fr +$V_DATA_DISKGROUP/$V_CLONE_DB/TEMPFILE
-echo asmcmd --privilege sysdba rm -fr +$V_DATA_DISKGROUP/$V_CLONE_DB/PASSWORD
-$GRID_HOME/bin/asmcmd --privilege sysdba rm -fr +$V_DATA_DISKGROUP/$V_CLONE_DB/PASSWORD
-echo asmcmd --privilege sysdba rm -fr +$V_DATA_DISKGROUP/$V_CLONE_DB/PARAMETERFILE
-$GRID_HOME/bin/asmcmd --privilege sysdba rm -fr +$V_DATA_DISKGROUP/$V_CLONE_DB/PARAMETERFILE
-echo asmcmd --privilege sysdba rm -fr +$V_DATA_DISKGROUP/$V_CLONE_DB/ONLINELOG
-$GRID_HOME/bin/asmcmd --privilege sysdba rm -fr +$V_DATA_DISKGROUP/$V_CLONE_DB/ONLINELOG
-echo asmcmd --privilege sysdba rm -fr +$V_DATA_DISKGROUP/$V_CLONE_DB/CONTROLFILE
-$GRID_HOME/bin/asmcmd --privilege sysdba rm -fr +$V_DATA_DISKGROUP/$V_CLONE_DB/CONTROLFILE
-
-echo asmcmd --privilege sysdba rm -fr +$V_ARCHIVE_DISKGROUP/$V_CLONE_DB/ONLINELOG
-$GRID_HOME/bin/asmcmd --privilege sysdba rm -fr +$V_ARCHIVE_DISKGROUP/$V_CLONE_DB/ONLINELOG
-echo asmcmd --privilege sysdba rm -fr +$V_ARCHIVE_DISKGROUP/$V_CLONE_DB/CONTROLFILE
-$GRID_HOME/bin/asmcmd --privilege sysdba rm -fr +$V_ARCHIVE_DISKGROUP/$V_CLONE_DB/CONTROLFILE
-
-echo asmcmd --privilege sysdba rm -fr +$V_REDO_DISKGROUP/$V_CLONE_DB/ONLINELOG
-$GRID_HOME/bin/asmcmd --privilege sysdba rm -fr +$V_REDO_DISKGROUP/$V_CLONE_DB/ONLINELOG
-echo asmcmd --privilege sysdba rm -fr +$V_REDO_DISKGROUP/$V_CLONE_DB/CONTROLFILE
-$GRID_HOME/bin/asmcmd --privilege sysdba rm -fr +$V_REDO_DISKGROUP/$V_CLONE_DB/CONTROLFILE
-}
-#################################################################################################################
 
 #################################################################################################################
 # Setup environment for duplication to be done locally
@@ -242,48 +206,15 @@ tmppfile="$TMPDIR/init${DEST_SID}_${pid}.ora"
 asmspfile="$db_create_file_dest/$DEST_SID/spfile${DEST_SID}"
 newpfile="$ORACLE_HOME/dbs/init${DEST_SID}.ora"
 
-#################################################################################################################
-# En attendant que PasswordState débarque sur flbeoradgprd01 les mots de passe sont codés, quelle horreur !!!!!
-#################################################################################################################
-# Passwords are preset
-source_sid_pwd="Qmx0225_$lowerSOURCE_SID"
-dest_sid_pwd="Qmx0225_$lowerDEST_SID"
-#################################################################################################################
-
-#################################################################################################################
-# PasswordState gpg setup
-OEM_HOST=flbeoraoem01
-
-# Global security file
-GLOB_SECFILE=/u01/app/oracle/scripts/security/reslist_$OEM_HOST.txt.gpg
-
-# Local file (specific to host)
-#DEST_SECFILE=/u01/app/oracle/scripts/security/reslist_${HOSTNAME}.txt.gpg
-#[[ ! -s $DEST_SECFILE ]] && { print "GPG $DEST_SECFILE not found, exit." | tee -a $err; exit; }
-# to proceed without the security file
-#[[ ! -s $DEST_SECFILE ]] && print "GPG $DEST_SECFILE not found, we proceeed ..." 
-
 # Get SYS info for source & destination
 sys_usr=SYS
 
-# Find sys password for $SOURCE_SID, necessary for active duplication. Only for active duplication.
-#if [[ $DUPLICATE_MODE == $ACTIVE_MODE ]] 
-#then
-#  sshcmd="gpg -qd $GLOB_SECFILE | grep -i \"$SOURCE_SID:$sys_usr:\" | cut -d \":\" -f3"
-#  source_sid_pwd=$(ssh oracle@$OEM_HOST $sshcmd)
-#  [[ -z $source_sid_pwd ]]  && { print "$sys_usr password for $SOURCE_SID not found, exit." | tee -a $err; exit; }
-#fi
-
-# Find sys password for $DEST_SID
-#dest_sid_pwd=$(gpg -qd $DEST_SECFILE | grep -i "$DEST_SID:$sys_usr:" | cut -d ":" -f3)
-#[[ -z $dest_sid_pwd ]]  && { print "$sys_usr password for $DEST_SID not found, exit." | tee -a $err; exit; }
-
-print "source_sid_pwd is $source_sid_pwd"
-print "dest_sid_pwd is $dest_sid_pwd"
+print "SOURCE_SID_PWD is $SOURCE_SID_PWD"
+print "DEST_SID_PWD is $DEST_SID_PWD"
 
 #################################################################################################################
 # connection string for a local connection.
-dest_cnxsys="sys/$dest_sid_pwd as sysdba"
+dest_cnxsys="sys/$DEST_SID_PWD as sysdba"
 
 # Abort instance $DEST_SID if found
 (( instanceUp = $(ps -ef | grep "pmon_$DEST_SID\$" | grep -v grep | wc -l ) ))
@@ -304,14 +235,7 @@ fi
 
 #################################################################################################################
 # Cleanup
-# ASM files are removed.
 #################################################################################################################
-#print '\nASM cleanup' 
-#print "ORACLE_SID is $ORACLE_SID"
-#remove_db 
-# until remove_db is sorted out ...
-#ssh grid@flbeoradgqua01 "/home/grid/dup/rmasm4db.sh $ORACLE_SID"
-
 print '\nPassword & pfiles cleanup'
 [[ -f $passwordfile ]] && $DEBUG rm -v $passwordfile
 [[ -f $newpfile ]] && $DEBUG rm -v $newpfile
@@ -328,9 +252,6 @@ remote_login_passwordfile='EXCLUSIVE'
 db_create_file_dest='$db_create_file_dest'
 db_recovery_file_dest='$db_recovery_file_dest'
 db_recovery_file_dest_size='$db_recovery_file_dest_size'
-# useless for auxiliary instance
-#db_create_online_log_dest_1='+REDO'
-#db_create_online_log_dest_2='+FRA'
 !
 [[ ! -s $init_ora_file ]] && { print "Auxiliary instance $DEST_SID $init_ora_file not created, exit."; exit; }
 print "\nAuxiliary instance $DEST_SID $init_ora_file"
@@ -345,18 +266,14 @@ rman_log_file="$TMPDIR/duplicate_${SOURCE_SID}_2_${DEST_SID}_${pid}.log"
 #################################################################################################################
 if [[ $DUPLICATE_MODE == $BACKUP_MODE ]]
 then
-  dest_cnxsys="sys/$dest_sid_pwd as sysdba"
+  dest_cnxsys="sys/$DEST_SID_PWD as sysdba"
   cat <<! > $rman_cmd_file
-connect auxiliary sys/$dest_sid_pwd
+connect auxiliary sys/$DEST_SID_PWD
 run{
 allocate auxiliary channel aux1 type disk;
 allocate auxiliary channel aux2 type disk;
 allocate auxiliary channel aux3 type disk;
 allocate auxiliary channel aux4 type disk;
-allocate auxiliary channel aux5 type disk;
-allocate auxiliary channel aux6 type disk;
-allocate auxiliary channel aux7 type disk;
-allocate auxiliary channel aux8 type disk;
 DUPLICATE DATABASE '$SOURCE_SID' TO '$DEST_SID'
 !
 
@@ -383,10 +300,10 @@ fi
 #################################################################################################################
 if [[ $DUPLICATE_MODE == $ACTIVE_MODE ]]
 then
-  dest_cnxsys="sys/$source_sid_pwd as sysdba"
+  dest_cnxsys="sys/$SOURCE_SID_PWD as sysdba"
   cat <<! > $rman_cmd_file
-connect target sys/$source_sid_pwd@$SOURCE_SID
-connect auxiliary sys/$source_sid_pwd
+connect target sys/$SOURCE_SID_PWD@$SOURCE_SID
+connect auxiliary sys/$SOURCE_SID_PWD
 run{
 allocate channel prm1 type disk;
 allocate channel prm2 type disk;
@@ -449,9 +366,9 @@ fi
 [[ ! -d $core_dump_dest ]] && { print "Core dump directory $core_dump_dest not found, exit."; exit; }
 
 # Create password file
-[[ $DUPLICATE_MODE == $BACKUP_MODE ]] && $DEBUG $ORACLE_HOME/bin/orapwd file=$passwordfile password=$dest_sid_pwd entries=10  force=y
+[[ $DUPLICATE_MODE == $BACKUP_MODE ]] && $DEBUG $ORACLE_HOME/bin/orapwd file=$passwordfile password=$DEST_SID_PWD entries=10  force=y
 # For active duplication SYS password must be identical for source & destination
-[[ $DUPLICATE_MODE == $ACTIVE_MODE ]] && $DEBUG $ORACLE_HOME/bin/orapwd file=$passwordfile password=$source_sid_pwd entries=10  force=y
+[[ $DUPLICATE_MODE == $ACTIVE_MODE ]] && $DEBUG $ORACLE_HOME/bin/orapwd file=$passwordfile password=$SOURCE_SID_PWD entries=10  force=y
 
 [[ ! -s $passwordfile ]] && { print "Oracle password file $passwordfile empty or not found, exit." | tee -a $err; exit; }
 print "Oracle password file $passwordfile created" 
@@ -557,19 +474,14 @@ spfile='$asmspfile'
 !
 [[ ! -s $newpfile ]] && { print "ASM spfile pointing pfile $newpfile empty or not found, exit." | tee -a $err; exit; }
 
-#################################################################################################################
-# Store duplicated database password on ASM
-#################################################################################################################
-#$DEBUG $ORACLE_HOME/bin/orapwd input_file=$passwordfile file=$asmpasswordfile asm=y
-
 # Mount db with ASM pfile
 $ORACLE_HOME/bin/sqlplus -s $dest_cnxsys <<! 
 whenever sqlerror exit sql.sqlcode;
 shutdown abort
 startup pfile='$newpfile'
-alter user sys identified by $dest_sid_pwd;
-alter user system identified by $dest_sid_pwd;
-alter user dzdba identified by $dest_sid_pwd;
+alter user sys identified by $DEST_SID_PWD;
+alter user system identified by $DEST_SID_PWD;
+alter user dzdba identified by $DEST_SID_PWD;
 shutdown immediate
 exit
 !

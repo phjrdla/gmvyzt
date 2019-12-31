@@ -1,0 +1,917 @@
+
+Recovery Manager: Release 18.0.0.0.0 - Production on Mon Dec 30 15:49:24 2019
+Version 18.7.0.0.0
+
+Copyright (c) 1982, 2018, Oracle and/or its affiliates.  All rights reserved.
+
+RMAN> connect auxiliary *
+2> run{
+3> allocate auxiliary channel aux1 type disk;
+4> allocate auxiliary channel aux2 type disk;
+5> allocate auxiliary channel aux3 type disk;
+6> allocate auxiliary channel aux4 type disk;
+7> DUPLICATE DATABASE 'NNZDEVL' TO 'DRDEVL'
+8> backup location '/DD2500/backup/NNZDEVL'
+9> spfile
+10> PARAMETER_VALUE_CONVERT
+11>   'NNZDEVL','DRDEVL'
+12> NOFILENAMECHECK;
+13> }
+14> 
+connected to auxiliary database: DRDEVL (not mounted)
+
+allocated channel: aux1
+channel aux1: SID=294 device type=DISK
+
+allocated channel: aux2
+channel aux2: SID=153 device type=DISK
+
+allocated channel: aux3
+channel aux3: SID=435 device type=DISK
+
+allocated channel: aux4
+channel aux4: SID=13 device type=DISK
+
+Starting Duplicate Db at 30-DEC-19
+
+contents of Memory Script:
+{
+   restore clone spfile to  '/u01/app/oracle/product/18.0.0.0/dbs/spfileDRDEVL.ora' from 
+ '/DD2500/backup/NNZDEVL/ctl_20191230/c-1783077535-20191230-05';
+   sql clone "alter system set spfile= ''/u01/app/oracle/product/18.0.0.0/dbs/spfileDRDEVL.ora''";
+}
+executing Memory Script
+
+Starting restore at 30-DEC-19
+
+channel aux2: skipped, AUTOBACKUP already found
+channel aux3: skipped, AUTOBACKUP already found
+channel aux4: skipped, AUTOBACKUP already found
+channel aux1: restoring spfile from AUTOBACKUP /DD2500/backup/NNZDEVL/ctl_20191230/c-1783077535-20191230-05
+channel aux1: SPFILE restore from AUTOBACKUP complete
+Finished restore at 30-DEC-19
+
+sql statement: alter system set spfile= ''/u01/app/oracle/product/18.0.0.0/dbs/spfileDRDEVL.ora''
+
+contents of Memory Script:
+{
+   sql clone "alter system set  db_name = 
+ ''DRDEVL'' comment=
+ ''duplicate'' scope=spfile";
+   sql clone "alter system set  audit_file_dest = 
+ ''/u01/app/oracle/admin/DRDEVL/adump'' comment=
+ '''' scope=spfile";
+   sql clone "alter system set  control_files = 
+ ''+DATA/DRDEVL/CONTROLFILE/control01.ctl'', ''+FRA/DRDEVL/CONTROLFILE/control02.ctl'' comment=
+ '''' scope=spfile";
+   sql clone "alter system set  db_name = 
+ ''DRDEVL'' comment=
+ ''Reset to original value by RMAN'' scope=spfile";
+   sql clone "alter system set  dispatchers = 
+ ''(PROTOCOL=TCP) (SERVICE=DRDEVLXDB)'' comment=
+ '''' scope=spfile";
+   sql clone "alter system set  log_archive_format = 
+ ''DRDEVL_%t_%s_%r.arc'' comment=
+ '''' scope=spfile";
+   shutdown clone immediate;
+   startup clone nomount;
+}
+executing Memory Script
+
+sql statement: alter system set  db_name =  ''DRDEVL'' comment= ''duplicate'' scope=spfile
+
+sql statement: alter system set  audit_file_dest =  ''/u01/app/oracle/admin/DRDEVL/adump'' comment= '''' scope=spfile
+
+sql statement: alter system set  control_files =  ''+DATA/DRDEVL/CONTROLFILE/control01.ctl'', ''+FRA/DRDEVL/CONTROLFILE/control02.ctl'' comment= '''' scope=spfile
+
+sql statement: alter system set  db_name =  ''DRDEVL'' comment= ''Reset to original value by RMAN'' scope=spfile
+
+sql statement: alter system set  dispatchers =  ''(PROTOCOL=TCP) (SERVICE=DRDEVLXDB)'' comment= '''' scope=spfile
+
+sql statement: alter system set  log_archive_format =  ''DRDEVL_%t_%s_%r.arc'' comment= '''' scope=spfile
+
+Oracle instance shut down
+
+connected to auxiliary database (not started)
+Oracle instance started
+
+Total System Global Area    1610612016 bytes
+
+Fixed Size                     8658224 bytes
+Variable Size                603979776 bytes
+Database Buffers             989855744 bytes
+Redo Buffers                   8118272 bytes
+allocated channel: aux1
+channel aux1: SID=475 device type=DISK
+allocated channel: aux2
+channel aux2: SID=703 device type=DISK
+allocated channel: aux3
+channel aux3: SID=11 device type=DISK
+allocated channel: aux4
+channel aux4: SID=476 device type=DISK
+
+contents of Memory Script:
+{
+   sql clone "alter system set  db_name = 
+ ''NNZDEVL'' comment=
+ ''Modified by RMAN duplicate'' scope=spfile";
+   sql clone "alter system set  db_unique_name = 
+ ''DRDEVL'' comment=
+ ''Modified by RMAN duplicate'' scope=spfile";
+   shutdown clone immediate;
+   startup clone force nomount
+   restore clone primary controlfile from  '/DD2500/backup/NNZDEVL/ctl_20191230/c-1783077535-20191230-08';
+   alter clone database mount;
+}
+executing Memory Script
+
+sql statement: alter system set  db_name =  ''NNZDEVL'' comment= ''Modified by RMAN duplicate'' scope=spfile
+
+sql statement: alter system set  db_unique_name =  ''DRDEVL'' comment= ''Modified by RMAN duplicate'' scope=spfile
+
+Oracle instance shut down
+
+Oracle instance started
+
+Total System Global Area    1610612016 bytes
+
+Fixed Size                     8658224 bytes
+Variable Size                603979776 bytes
+Database Buffers             989855744 bytes
+Redo Buffers                   8118272 bytes
+allocated channel: aux1
+channel aux1: SID=475 device type=DISK
+allocated channel: aux2
+channel aux2: SID=703 device type=DISK
+allocated channel: aux3
+channel aux3: SID=11 device type=DISK
+allocated channel: aux4
+channel aux4: SID=476 device type=DISK
+
+Starting restore at 30-DEC-19
+
+channel aux2: skipped, AUTOBACKUP already found
+channel aux3: skipped, AUTOBACKUP already found
+channel aux4: skipped, AUTOBACKUP already found
+channel aux1: restoring control file
+channel aux1: restore complete, elapsed time: 00:00:11
+output file name=+DATA/DRDEVL/CONTROLFILE/control01.ctl
+output file name=+FRA/DRDEVL/CONTROLFILE/control02.ctl
+Finished restore at 30-DEC-19
+
+database mounted
+
+contents of Memory Script:
+{
+   set until scn  121953155189;
+   set newname for clone datafile  1 to new;
+   set newname for clone datafile  2 to new;
+   set newname for clone datafile  3 to new;
+   set newname for clone datafile  4 to new;
+   set newname for clone datafile  5 to new;
+   set newname for clone datafile  6 to new;
+   set newname for clone datafile  7 to new;
+   set newname for clone datafile  8 to new;
+   set newname for clone datafile  9 to new;
+   set newname for clone datafile  10 to new;
+   set newname for clone datafile  11 to new;
+   set newname for clone datafile  12 to new;
+   set newname for clone datafile  13 to new;
+   set newname for clone datafile  14 to new;
+   set newname for clone datafile  15 to new;
+   set newname for clone datafile  16 to new;
+   set newname for clone datafile  17 to new;
+   set newname for clone datafile  18 to new;
+   set newname for clone datafile  19 to new;
+   set newname for clone datafile  20 to new;
+   set newname for clone datafile  21 to new;
+   set newname for clone datafile  22 to new;
+   set newname for clone datafile  23 to new;
+   set newname for clone datafile  24 to new;
+   set newname for clone datafile  25 to new;
+   set newname for clone datafile  26 to new;
+   set newname for clone datafile  27 to new;
+   set newname for clone datafile  28 to new;
+   set newname for clone datafile  29 to new;
+   set newname for clone datafile  30 to new;
+   set newname for clone datafile  31 to new;
+   set newname for clone datafile  32 to new;
+   set newname for clone datafile  33 to new;
+   set newname for clone datafile  34 to new;
+   set newname for clone datafile  35 to new;
+   set newname for clone datafile  36 to new;
+   set newname for clone datafile  37 to new;
+   restore
+   clone database
+   ;
+}
+executing Memory Script
+
+executing command: SET until clause
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+executing command: SET NEWNAME
+
+Starting restore at 30-DEC-19
+
+channel aux1: starting datafile backup set restore
+channel aux1: specifying datafile(s) to restore from backup set
+channel aux1: restoring datafile 00008 to +DATA
+channel aux1: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p3uknula_1_1
+channel aux2: starting datafile backup set restore
+channel aux2: specifying datafile(s) to restore from backup set
+channel aux2: restoring datafile 00029 to +DATA
+channel aux2: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p4uknula_1_1
+channel aux3: starting datafile backup set restore
+channel aux3: specifying datafile(s) to restore from backup set
+channel aux3: restoring datafile 00021 to +DATA
+channel aux3: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p5uknulb_1_1
+channel aux4: starting datafile backup set restore
+channel aux4: specifying datafile(s) to restore from backup set
+channel aux4: restoring datafile 00027 to +DATA
+channel aux4: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p6uknulb_1_1
+channel aux3: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p5uknulb_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux3: restored backup piece 1
+channel aux3: restore complete, elapsed time: 00:01:06
+channel aux3: starting datafile backup set restore
+channel aux3: specifying datafile(s) to restore from backup set
+channel aux3: restoring datafile 00003 to +DATA
+channel aux3: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p7uknuo0_1_1
+channel aux1: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p3uknula_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux1: restored backup piece 1
+channel aux1: restore complete, elapsed time: 00:01:23
+channel aux1: starting datafile backup set restore
+channel aux1: specifying datafile(s) to restore from backup set
+channel aux1: restoring datafile 00007 to +DATA
+channel aux1: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p9uknuoh_1_1
+channel aux4: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p6uknulb_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux4: restored backup piece 1
+channel aux4: restore complete, elapsed time: 00:01:23
+channel aux4: starting datafile backup set restore
+channel aux4: specifying datafile(s) to restore from backup set
+channel aux4: restoring datafile 00028 to +DATA
+channel aux4: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p8uknuo2_1_1
+channel aux2: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p4uknula_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux2: restored backup piece 1
+channel aux2: restore complete, elapsed time: 00:01:30
+channel aux2: starting datafile backup set restore
+channel aux2: specifying datafile(s) to restore from backup set
+channel aux2: restoring datafile 00033 to +DATA
+channel aux2: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pauknuoh_1_1
+channel aux1: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p9uknuoh_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux1: restored backup piece 1
+channel aux1: restore complete, elapsed time: 00:00:54
+channel aux1: starting datafile backup set restore
+channel aux1: specifying datafile(s) to restore from backup set
+channel aux1: restoring datafile 00001 to +DATA
+channel aux1: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pbuknuq8_1_1
+channel aux2: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pauknuoh_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux2: restored backup piece 1
+channel aux2: restore complete, elapsed time: 00:00:46
+channel aux2: starting datafile backup set restore
+channel aux2: specifying datafile(s) to restore from backup set
+channel aux2: restoring datafile 00036 to +DATA
+channel aux2: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pcuknuq8_1_1
+channel aux3: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p7uknuo0_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux3: restored backup piece 1
+channel aux3: restore complete, elapsed time: 00:01:11
+channel aux3: starting datafile backup set restore
+channel aux3: specifying datafile(s) to restore from backup set
+channel aux3: restoring datafile 00016 to +DATA
+channel aux3: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pduknuq9_1_1
+channel aux2: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pcuknuq8_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux2: restored backup piece 1
+channel aux2: restore complete, elapsed time: 00:00:03
+channel aux2: starting datafile backup set restore
+channel aux2: specifying datafile(s) to restore from backup set
+channel aux2: restoring datafile 00017 to +DATA
+channel aux2: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_peuknuqg_1_1
+channel aux3: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pduknuq9_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux3: restored backup piece 1
+channel aux3: restore complete, elapsed time: 00:00:19
+channel aux3: starting datafile backup set restore
+channel aux3: specifying datafile(s) to restore from backup set
+channel aux3: restoring datafile 00012 to +DATA
+channel aux3: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pfuknuqg_1_1
+channel aux4: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_p8uknuo2_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux4: restored backup piece 1
+channel aux4: restore complete, elapsed time: 00:01:13
+channel aux4: starting datafile backup set restore
+channel aux4: specifying datafile(s) to restore from backup set
+channel aux4: restoring datafile 00018 to +DATA
+channel aux4: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pguknuqv_1_1
+channel aux2: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_peuknuqg_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux2: restored backup piece 1
+channel aux2: restore complete, elapsed time: 00:00:19
+channel aux2: starting datafile backup set restore
+channel aux2: specifying datafile(s) to restore from backup set
+channel aux2: restoring datafile 00022 to +DATA
+channel aux2: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_phuknur6_1_1
+channel aux4: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pguknuqv_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux4: restored backup piece 1
+channel aux4: restore complete, elapsed time: 00:00:04
+channel aux4: starting datafile backup set restore
+channel aux4: specifying datafile(s) to restore from backup set
+channel aux4: restoring datafile 00023 to +DATA
+channel aux4: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_piuknur6_1_1
+channel aux2: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_phuknur6_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux2: restored backup piece 1
+channel aux2: restore complete, elapsed time: 00:00:26
+channel aux2: starting datafile backup set restore
+channel aux2: specifying datafile(s) to restore from backup set
+channel aux2: restoring datafile 00002 to +DATA
+channel aux2: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pluknura_1_1
+channel aux3: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pfuknuqg_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux3: restored backup piece 1
+channel aux3: restore complete, elapsed time: 00:00:30
+channel aux3: starting datafile backup set restore
+channel aux3: specifying datafile(s) to restore from backup set
+channel aux3: restoring datafile 00004 to +DATA
+channel aux3: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pkuknur7_1_1
+channel aux4: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_piuknur6_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux4: restored backup piece 1
+channel aux4: restore complete, elapsed time: 00:00:26
+channel aux4: starting datafile backup set restore
+channel aux4: specifying datafile(s) to restore from backup set
+channel aux4: restoring datafile 00035 to +DATA
+channel aux4: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pjuknur7_1_1
+channel aux4: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pjuknur7_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux4: restored backup piece 1
+channel aux4: restore complete, elapsed time: 00:00:01
+channel aux4: starting datafile backup set restore
+channel aux4: specifying datafile(s) to restore from backup set
+channel aux4: restoring datafile 00005 to +DATA
+channel aux4: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pmuknura_1_1
+channel aux3: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pkuknur7_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux3: restored backup piece 1
+channel aux3: restore complete, elapsed time: 00:00:02
+channel aux3: starting datafile backup set restore
+channel aux3: specifying datafile(s) to restore from backup set
+channel aux3: restoring datafile 00009 to +DATA
+channel aux3: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pnuknurp_1_1
+channel aux2: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pluknura_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux2: restored backup piece 1
+channel aux2: restore complete, elapsed time: 00:00:11
+channel aux2: starting datafile backup set restore
+channel aux2: specifying datafile(s) to restore from backup set
+channel aux2: restoring datafile 00030 to +DATA
+channel aux2: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pouknurp_1_1
+channel aux4: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pmuknura_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux4: restored backup piece 1
+channel aux4: restore complete, elapsed time: 00:00:09
+channel aux4: starting datafile backup set restore
+channel aux4: specifying datafile(s) to restore from backup set
+channel aux4: restoring datafile 00013 to +DATA
+channel aux4: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_ppuknurq_1_1
+channel aux3: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pnuknurp_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux3: restored backup piece 1
+channel aux3: restore complete, elapsed time: 00:00:09
+channel aux3: starting datafile backup set restore
+channel aux3: specifying datafile(s) to restore from backup set
+channel aux3: restoring datafile 00024 to +DATA
+channel aux3: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pquknurq_1_1
+channel aux1: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pbuknuq8_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux1: restored backup piece 1
+channel aux1: restore complete, elapsed time: 00:01:07
+channel aux1: starting datafile backup set restore
+channel aux1: specifying datafile(s) to restore from backup set
+channel aux1: restoring datafile 00025 to +DATA
+channel aux1: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pruknus1_1_1
+channel aux2: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pouknurp_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux2: restored backup piece 1
+channel aux2: restore complete, elapsed time: 00:00:08
+channel aux2: starting datafile backup set restore
+channel aux2: specifying datafile(s) to restore from backup set
+channel aux2: restoring datafile 00034 to +DATA
+channel aux2: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_ptuknus1_1_1
+channel aux4: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_ppuknurq_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux4: restored backup piece 1
+channel aux4: restore complete, elapsed time: 00:00:09
+channel aux4: starting datafile backup set restore
+channel aux4: specifying datafile(s) to restore from backup set
+channel aux4: restoring datafile 00026 to +DATA
+channel aux4: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_psuknus1_1_1
+channel aux1: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pruknus1_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux1: restored backup piece 1
+channel aux1: restore complete, elapsed time: 00:00:04
+channel aux1: starting datafile backup set restore
+channel aux1: specifying datafile(s) to restore from backup set
+channel aux1: restoring datafile 00037 to +DATA
+channel aux1: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_puuknus2_1_1
+channel aux4: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_psuknus1_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux4: restored backup piece 1
+channel aux4: restore complete, elapsed time: 00:00:03
+channel aux4: starting datafile backup set restore
+channel aux4: specifying datafile(s) to restore from backup set
+channel aux4: restoring datafile 00010 to +DATA
+channel aux4: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q1uknusa_1_1
+channel aux2: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_ptuknus1_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux2: restored backup piece 1
+channel aux2: restore complete, elapsed time: 00:00:04
+channel aux2: starting datafile backup set restore
+channel aux2: specifying datafile(s) to restore from backup set
+channel aux2: restoring datafile 00014 to +DATA
+channel aux2: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pvuknus9_1_1
+channel aux3: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pquknurq_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux3: restored backup piece 1
+channel aux3: restore complete, elapsed time: 00:00:13
+channel aux3: starting datafile backup set restore
+channel aux3: specifying datafile(s) to restore from backup set
+channel aux3: restoring datafile 00015 to +DATA
+channel aux3: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q0uknusa_1_1
+channel aux4: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q1uknusa_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux4: restored backup piece 1
+channel aux4: restore complete, elapsed time: 00:00:02
+channel aux4: starting datafile backup set restore
+channel aux4: specifying datafile(s) to restore from backup set
+channel aux4: restoring datafile 00019 to +DATA
+channel aux4: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q2uknusa_1_1
+channel aux3: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q0uknusa_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux3: restored backup piece 1
+channel aux3: restore complete, elapsed time: 00:00:00
+channel aux3: starting datafile backup set restore
+channel aux3: specifying datafile(s) to restore from backup set
+channel aux3: restoring datafile 00020 to +DATA
+channel aux3: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q3uknusb_1_1
+channel aux2: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_pvuknus9_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux2: restored backup piece 1
+channel aux2: restore complete, elapsed time: 00:00:01
+channel aux2: starting datafile backup set restore
+channel aux2: specifying datafile(s) to restore from backup set
+channel aux2: restoring datafile 00006 to +DATA
+channel aux2: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q7uknusd_1_1
+channel aux3: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q3uknusb_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux3: restored backup piece 1
+channel aux3: restore complete, elapsed time: 00:00:01
+channel aux3: starting datafile backup set restore
+channel aux3: specifying datafile(s) to restore from backup set
+channel aux3: restoring datafile 00011 to +DATA
+channel aux3: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q4uknusd_1_1
+channel aux4: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q2uknusa_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux4: restored backup piece 1
+channel aux4: restore complete, elapsed time: 00:00:02
+channel aux4: starting datafile backup set restore
+channel aux4: specifying datafile(s) to restore from backup set
+channel aux4: restoring datafile 00031 to +DATA
+channel aux4: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q5uknusd_1_1
+channel aux2: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q7uknusd_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux2: restored backup piece 1
+channel aux2: restore complete, elapsed time: 00:00:01
+channel aux2: starting datafile backup set restore
+channel aux2: specifying datafile(s) to restore from backup set
+channel aux2: restoring datafile 00032 to +DATA
+channel aux2: reading from backup piece /DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q6uknusd_1_1
+channel aux2: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q6uknusd_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux2: restored backup piece 1
+channel aux2: restore complete, elapsed time: 00:00:02
+channel aux4: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q5uknusd_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux4: restored backup piece 1
+channel aux4: restore complete, elapsed time: 00:00:02
+channel aux1: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_puuknus2_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux1: restored backup piece 1
+channel aux1: restore complete, elapsed time: 00:00:08
+channel aux3: piece handle=/DD2500/backup/NNZDEVL/data_20191230/FULLON_NNZDEVL_q4uknusd_1_1 tag=NNZDEVL_DB_ONLINE
+channel aux3: restored backup piece 1
+channel aux3: restore complete, elapsed time: 00:00:05
+Finished restore at 30-DEC-19
+
+contents of Memory Script:
+{
+   switch clone datafile all;
+}
+executing Memory Script
+
+datafile 1 switched to datafile copy
+input datafile copy RECID=52 STAMP=1028391487 file name=+DATA/DRDEVL/DATAFILE/system.1848.1028391411
+datafile 2 switched to datafile copy
+input datafile copy RECID=53 STAMP=1028391487 file name=+DATA/DRDEVL/DATAFILE/appl_shared_objs_ix.1849.1028391457
+datafile 3 switched to datafile copy
+input datafile copy RECID=54 STAMP=1028391487 file name=+DATA/DRDEVL/DATAFILE/sysaux.1856.1028391341
+datafile 4 switched to datafile copy
+input datafile copy RECID=55 STAMP=1028391487 file name=+DATA/DRDEVL/DATAFILE/undotbs1.524.1028391457
+datafile 5 switched to datafile copy
+input datafile copy RECID=56 STAMP=1028391487 file name=+DATA/DRDEVL/DATAFILE/appl_shared_objs_dt.1836.1028391459
+datafile 6 switched to datafile copy
+input datafile copy RECID=57 STAMP=1028391487 file name=+DATA/DRDEVL/DATAFILE/users.522.1028391483
+datafile 7 switched to datafile copy
+input datafile copy RECID=58 STAMP=1028391487 file name=+DATA/DRDEVL/DATAFILE/datapub_dt.1862.1028391355
+datafile 8 switched to datafile copy
+input datafile copy RECID=59 STAMP=1028391487 file name=+DATA/DRDEVL/DATAFILE/datapub_dt.1834.1028391271
+datafile 9 switched to datafile copy
+input datafile copy RECID=60 STAMP=1028391487 file name=+DATA/DRDEVL/DATAFILE/datapub_ix.1866.1028391461
+datafile 10 switched to datafile copy
+input datafile copy RECID=61 STAMP=1028391487 file name=+DATA/DRDEVL/DATAFILE/dzdba_dt.1833.1028391481
+datafile 11 switched to datafile copy
+input datafile copy RECID=62 STAMP=1028391487 file name=+DATA/DRDEVL/DATAFILE/dzdba_ix.1850.1028391485
+datafile 12 switched to datafile copy
+input datafile copy RECID=63 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/ibis_dt.1867.1028391429
+datafile 13 switched to datafile copy
+input datafile copy RECID=64 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/ibis_ix.1863.1028391469
+datafile 14 switched to datafile copy
+input datafile copy RECID=65 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/lng_rabitetl_dt.1864.1028391481
+datafile 15 switched to datafile copy
+input datafile copy RECID=66 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/lng_rabitetl_ix.1865.1028391481
+datafile 16 switched to datafile copy
+input datafile copy RECID=67 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/nomad_dt.1831.1028391411
+datafile 17 switched to datafile copy
+input datafile copy RECID=68 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/nomad_ix.1843.1028391413
+datafile 18 switched to datafile copy
+input datafile copy RECID=69 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/pandora_dt.1846.1028391427
+datafile 19 switched to datafile copy
+input datafile copy RECID=70 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/rabit_dt.1857.1028391481
+datafile 20 switched to datafile copy
+input datafile copy RECID=71 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/rabit_ix.1858.1028391481
+datafile 21 switched to datafile copy
+input datafile copy RECID=72 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/salt_dt.1851.1028391271
+datafile 22 switched to datafile copy
+input datafile copy RECID=73 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/salt_ix.1008.1028391431
+datafile 23 switched to datafile copy
+input datafile copy RECID=74 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/sirocco_dt.1868.1028391433
+datafile 24 switched to datafile copy
+input datafile copy RECID=75 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/sirocco_ix.1844.1028391471
+datafile 25 switched to datafile copy
+input datafile copy RECID=76 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/sweden_dt.893.1028391477
+datafile 26 switched to datafile copy
+input datafile copy RECID=77 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/sweden_ix.1845.1028391477
+datafile 27 switched to datafile copy
+input datafile copy RECID=78 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/titanods_dt.1853.1028391273
+datafile 28 switched to datafile copy
+input datafile copy RECID=79 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/titanods_ix.1855.1028391355
+datafile 29 switched to datafile copy
+input datafile copy RECID=80 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/titan_dt.862.1028391271
+datafile 30 switched to datafile copy
+input datafile copy RECID=81 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/titan_ix.1835.1028391469
+datafile 31 switched to datafile copy
+input datafile copy RECID=82 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/toad_dt.1832.1028391485
+datafile 32 switched to datafile copy
+input datafile copy RECID=83 STAMP=1028391488 file name=+DATA/DRDEVL/DATAFILE/toad_ix.864.1028391485
+datafile 33 switched to datafile copy
+input datafile copy RECID=84 STAMP=1028391489 file name=+DATA/DRDEVL/DATAFILE/ulmo_dt.1854.1028391365
+datafile 34 switched to datafile copy
+input datafile copy RECID=85 STAMP=1028391489 file name=+DATA/DRDEVL/DATAFILE/ulmo_ix.1847.1028391477
+datafile 35 switched to datafile copy
+input datafile copy RECID=86 STAMP=1028391489 file name=+DATA/DRDEVL/DATAFILE/undotbs1.858.1028391457
+datafile 36 switched to datafile copy
+input datafile copy RECID=87 STAMP=1028391489 file name=+DATA/DRDEVL/DATAFILE/auditing.847.1028391409
+datafile 37 switched to datafile copy
+input datafile copy RECID=88 STAMP=1028391489 file name=+DATA/DRDEVL/DATAFILE/titan_dt.1830.1028391481
+
+contents of Memory Script:
+{
+   set until scn  121953155189;
+   recover
+   clone database
+    delete archivelog
+   ;
+}
+executing Memory Script
+
+executing command: SET until clause
+
+Starting recover at 30-DEC-19
+
+starting media recovery
+
+channel aux1: starting archived log restore to default destination
+channel aux1: restoring archived log
+archived log thread=1 sequence=516
+channel aux1: restoring archived log
+archived log thread=1 sequence=517
+channel aux1: reading from backup piece /DD2500/backup/NNZDEVL/alog_20191230/ALOG_NNZDEVL_q9uknut4_1_1
+channel aux1: piece handle=/DD2500/backup/NNZDEVL/alog_20191230/ALOG_NNZDEVL_q9uknut4_1_1 tag=NNZDEVL_ALOG_ONLINE
+channel aux1: restored backup piece 1
+channel aux1: restore complete, elapsed time: 00:00:01
+archived log file name=+FRA/DRDEVL/ARCHIVELOG/2019_12_30/thread_1_seq_516.956.1028391495 thread=1 sequence=516
+channel clone_default: deleting archived log(s)
+archived log file name=+FRA/DRDEVL/ARCHIVELOG/2019_12_30/thread_1_seq_516.956.1028391495 RECID=2 STAMP=1028391495
+archived log file name=+FRA/DRDEVL/ARCHIVELOG/2019_12_30/thread_1_seq_517.855.1028391495 thread=1 sequence=517
+channel clone_default: deleting archived log(s)
+archived log file name=+FRA/DRDEVL/ARCHIVELOG/2019_12_30/thread_1_seq_517.855.1028391495 RECID=1 STAMP=1028391495
+media recovery complete, elapsed time: 00:00:00
+Finished recover at 30-DEC-19
+released channel: aux1
+released channel: aux2
+released channel: aux3
+released channel: aux4
+Oracle instance started
+
+Total System Global Area    1610612016 bytes
+
+Fixed Size                     8658224 bytes
+Variable Size                603979776 bytes
+Database Buffers             989855744 bytes
+Redo Buffers                   8118272 bytes
+
+contents of Memory Script:
+{
+   sql clone "alter system set  db_name = 
+ ''DRDEVL'' comment=
+ ''Reset to original value by RMAN'' scope=spfile";
+   sql clone "alter system reset  db_unique_name scope=spfile";
+}
+executing Memory Script
+
+sql statement: alter system set  db_name =  ''DRDEVL'' comment= ''Reset to original value by RMAN'' scope=spfile
+
+sql statement: alter system reset  db_unique_name scope=spfile
+Oracle instance started
+
+Total System Global Area    1610612016 bytes
+
+Fixed Size                     8658224 bytes
+Variable Size                603979776 bytes
+Database Buffers             989855744 bytes
+Redo Buffers                   8118272 bytes
+sql statement: CREATE CONTROLFILE REUSE SET DATABASE "DRDEVL" RESETLOGS ARCHIVELOG 
+  MAXLOGFILES     16
+  MAXLOGMEMBERS      3
+  MAXDATAFILES      100
+  MAXINSTANCES     8
+  MAXLOGHISTORY      584
+ LOGFILE
+  GROUP   1  SIZE 200 M ,
+  GROUP   2  SIZE 200 M ,
+  GROUP   3  SIZE 200 M ,
+  GROUP   4  SIZE 200 M 
+ DATAFILE
+  '+DATA/DRDEVL/DATAFILE/system.1848.1028391411'
+ CHARACTER SET AL32UTF8
+
+
+contents of Memory Script:
+{
+   set newname for clone tempfile  1 to new;
+   switch clone tempfile all;
+   catalog clone datafilecopy  "+DATA/DRDEVL/DATAFILE/appl_shared_objs_ix.1849.1028391457", 
+ "+DATA/DRDEVL/DATAFILE/sysaux.1856.1028391341", 
+ "+DATA/DRDEVL/DATAFILE/undotbs1.524.1028391457", 
+ "+DATA/DRDEVL/DATAFILE/appl_shared_objs_dt.1836.1028391459", 
+ "+DATA/DRDEVL/DATAFILE/users.522.1028391483", 
+ "+DATA/DRDEVL/DATAFILE/datapub_dt.1862.1028391355", 
+ "+DATA/DRDEVL/DATAFILE/datapub_dt.1834.1028391271", 
+ "+DATA/DRDEVL/DATAFILE/datapub_ix.1866.1028391461", 
+ "+DATA/DRDEVL/DATAFILE/dzdba_dt.1833.1028391481", 
+ "+DATA/DRDEVL/DATAFILE/dzdba_ix.1850.1028391485", 
+ "+DATA/DRDEVL/DATAFILE/ibis_dt.1867.1028391429", 
+ "+DATA/DRDEVL/DATAFILE/ibis_ix.1863.1028391469", 
+ "+DATA/DRDEVL/DATAFILE/lng_rabitetl_dt.1864.1028391481", 
+ "+DATA/DRDEVL/DATAFILE/lng_rabitetl_ix.1865.1028391481", 
+ "+DATA/DRDEVL/DATAFILE/nomad_dt.1831.1028391411", 
+ "+DATA/DRDEVL/DATAFILE/nomad_ix.1843.1028391413", 
+ "+DATA/DRDEVL/DATAFILE/pandora_dt.1846.1028391427", 
+ "+DATA/DRDEVL/DATAFILE/rabit_dt.1857.1028391481", 
+ "+DATA/DRDEVL/DATAFILE/rabit_ix.1858.1028391481", 
+ "+DATA/DRDEVL/DATAFILE/salt_dt.1851.1028391271", 
+ "+DATA/DRDEVL/DATAFILE/salt_ix.1008.1028391431", 
+ "+DATA/DRDEVL/DATAFILE/sirocco_dt.1868.1028391433", 
+ "+DATA/DRDEVL/DATAFILE/sirocco_ix.1844.1028391471", 
+ "+DATA/DRDEVL/DATAFILE/sweden_dt.893.1028391477", 
+ "+DATA/DRDEVL/DATAFILE/sweden_ix.1845.1028391477", 
+ "+DATA/DRDEVL/DATAFILE/titanods_dt.1853.1028391273", 
+ "+DATA/DRDEVL/DATAFILE/titanods_ix.1855.1028391355", 
+ "+DATA/DRDEVL/DATAFILE/titan_dt.862.1028391271", 
+ "+DATA/DRDEVL/DATAFILE/titan_ix.1835.1028391469", 
+ "+DATA/DRDEVL/DATAFILE/toad_dt.1832.1028391485", 
+ "+DATA/DRDEVL/DATAFILE/toad_ix.864.1028391485", 
+ "+DATA/DRDEVL/DATAFILE/ulmo_dt.1854.1028391365", 
+ "+DATA/DRDEVL/DATAFILE/ulmo_ix.1847.1028391477", 
+ "+DATA/DRDEVL/DATAFILE/undotbs1.858.1028391457", 
+ "+DATA/DRDEVL/DATAFILE/auditing.847.1028391409", 
+ "+DATA/DRDEVL/DATAFILE/titan_dt.1830.1028391481";
+   switch clone datafile all;
+}
+executing Memory Script
+
+executing command: SET NEWNAME
+
+renamed tempfile 1 to +DATA in control file
+
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/appl_shared_objs_ix.1849.1028391457 RECID=1 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/sysaux.1856.1028391341 RECID=2 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/undotbs1.524.1028391457 RECID=3 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/appl_shared_objs_dt.1836.1028391459 RECID=4 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/users.522.1028391483 RECID=5 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/datapub_dt.1862.1028391355 RECID=6 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/datapub_dt.1834.1028391271 RECID=7 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/datapub_ix.1866.1028391461 RECID=8 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/dzdba_dt.1833.1028391481 RECID=9 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/dzdba_ix.1850.1028391485 RECID=10 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/ibis_dt.1867.1028391429 RECID=11 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/ibis_ix.1863.1028391469 RECID=12 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/lng_rabitetl_dt.1864.1028391481 RECID=13 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/lng_rabitetl_ix.1865.1028391481 RECID=14 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/nomad_dt.1831.1028391411 RECID=15 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/nomad_ix.1843.1028391413 RECID=16 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/pandora_dt.1846.1028391427 RECID=17 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/rabit_dt.1857.1028391481 RECID=18 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/rabit_ix.1858.1028391481 RECID=19 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/salt_dt.1851.1028391271 RECID=20 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/salt_ix.1008.1028391431 RECID=21 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/sirocco_dt.1868.1028391433 RECID=22 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/sirocco_ix.1844.1028391471 RECID=23 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/sweden_dt.893.1028391477 RECID=24 STAMP=1028391531
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/sweden_ix.1845.1028391477 RECID=25 STAMP=1028391532
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/titanods_dt.1853.1028391273 RECID=26 STAMP=1028391532
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/titanods_ix.1855.1028391355 RECID=27 STAMP=1028391532
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/titan_dt.862.1028391271 RECID=28 STAMP=1028391532
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/titan_ix.1835.1028391469 RECID=29 STAMP=1028391532
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/toad_dt.1832.1028391485 RECID=30 STAMP=1028391532
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/toad_ix.864.1028391485 RECID=31 STAMP=1028391532
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/ulmo_dt.1854.1028391365 RECID=32 STAMP=1028391532
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/ulmo_ix.1847.1028391477 RECID=33 STAMP=1028391532
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/undotbs1.858.1028391457 RECID=34 STAMP=1028391532
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/auditing.847.1028391409 RECID=35 STAMP=1028391532
+cataloged datafile copy
+datafile copy file name=+DATA/DRDEVL/DATAFILE/titan_dt.1830.1028391481 RECID=36 STAMP=1028391532
+
+datafile 2 switched to datafile copy
+input datafile copy RECID=1 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/appl_shared_objs_ix.1849.1028391457
+datafile 3 switched to datafile copy
+input datafile copy RECID=2 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/sysaux.1856.1028391341
+datafile 4 switched to datafile copy
+input datafile copy RECID=3 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/undotbs1.524.1028391457
+datafile 5 switched to datafile copy
+input datafile copy RECID=4 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/appl_shared_objs_dt.1836.1028391459
+datafile 6 switched to datafile copy
+input datafile copy RECID=5 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/users.522.1028391483
+datafile 7 switched to datafile copy
+input datafile copy RECID=6 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/datapub_dt.1862.1028391355
+datafile 8 switched to datafile copy
+input datafile copy RECID=7 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/datapub_dt.1834.1028391271
+datafile 9 switched to datafile copy
+input datafile copy RECID=8 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/datapub_ix.1866.1028391461
+datafile 10 switched to datafile copy
+input datafile copy RECID=9 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/dzdba_dt.1833.1028391481
+datafile 11 switched to datafile copy
+input datafile copy RECID=10 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/dzdba_ix.1850.1028391485
+datafile 12 switched to datafile copy
+input datafile copy RECID=11 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/ibis_dt.1867.1028391429
+datafile 13 switched to datafile copy
+input datafile copy RECID=12 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/ibis_ix.1863.1028391469
+datafile 14 switched to datafile copy
+input datafile copy RECID=13 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/lng_rabitetl_dt.1864.1028391481
+datafile 15 switched to datafile copy
+input datafile copy RECID=14 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/lng_rabitetl_ix.1865.1028391481
+datafile 16 switched to datafile copy
+input datafile copy RECID=15 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/nomad_dt.1831.1028391411
+datafile 17 switched to datafile copy
+input datafile copy RECID=16 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/nomad_ix.1843.1028391413
+datafile 18 switched to datafile copy
+input datafile copy RECID=17 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/pandora_dt.1846.1028391427
+datafile 19 switched to datafile copy
+input datafile copy RECID=18 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/rabit_dt.1857.1028391481
+datafile 20 switched to datafile copy
+input datafile copy RECID=19 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/rabit_ix.1858.1028391481
+datafile 21 switched to datafile copy
+input datafile copy RECID=20 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/salt_dt.1851.1028391271
+datafile 22 switched to datafile copy
+input datafile copy RECID=21 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/salt_ix.1008.1028391431
+datafile 23 switched to datafile copy
+input datafile copy RECID=22 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/sirocco_dt.1868.1028391433
+datafile 24 switched to datafile copy
+input datafile copy RECID=23 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/sirocco_ix.1844.1028391471
+datafile 25 switched to datafile copy
+input datafile copy RECID=24 STAMP=1028391531 file name=+DATA/DRDEVL/DATAFILE/sweden_dt.893.1028391477
+datafile 26 switched to datafile copy
+input datafile copy RECID=25 STAMP=1028391532 file name=+DATA/DRDEVL/DATAFILE/sweden_ix.1845.1028391477
+datafile 27 switched to datafile copy
+input datafile copy RECID=26 STAMP=1028391532 file name=+DATA/DRDEVL/DATAFILE/titanods_dt.1853.1028391273
+datafile 28 switched to datafile copy
+input datafile copy RECID=27 STAMP=1028391532 file name=+DATA/DRDEVL/DATAFILE/titanods_ix.1855.1028391355
+datafile 29 switched to datafile copy
+input datafile copy RECID=28 STAMP=1028391532 file name=+DATA/DRDEVL/DATAFILE/titan_dt.862.1028391271
+datafile 30 switched to datafile copy
+input datafile copy RECID=29 STAMP=1028391532 file name=+DATA/DRDEVL/DATAFILE/titan_ix.1835.1028391469
+datafile 31 switched to datafile copy
+input datafile copy RECID=30 STAMP=1028391532 file name=+DATA/DRDEVL/DATAFILE/toad_dt.1832.1028391485
+datafile 32 switched to datafile copy
+input datafile copy RECID=31 STAMP=1028391532 file name=+DATA/DRDEVL/DATAFILE/toad_ix.864.1028391485
+datafile 33 switched to datafile copy
+input datafile copy RECID=32 STAMP=1028391532 file name=+DATA/DRDEVL/DATAFILE/ulmo_dt.1854.1028391365
+datafile 34 switched to datafile copy
+input datafile copy RECID=33 STAMP=1028391532 file name=+DATA/DRDEVL/DATAFILE/ulmo_ix.1847.1028391477
+datafile 35 switched to datafile copy
+input datafile copy RECID=34 STAMP=1028391532 file name=+DATA/DRDEVL/DATAFILE/undotbs1.858.1028391457
+datafile 36 switched to datafile copy
+input datafile copy RECID=35 STAMP=1028391532 file name=+DATA/DRDEVL/DATAFILE/auditing.847.1028391409
+datafile 37 switched to datafile copy
+input datafile copy RECID=36 STAMP=1028391532 file name=+DATA/DRDEVL/DATAFILE/titan_dt.1830.1028391481
+Reenabling controlfile options for auxiliary database
+Executing: alter database force logging
+
+contents of Memory Script:
+{
+   Alter clone database open resetlogs;
+}
+executing Memory Script
+
+database opened
+Finished Duplicate Db at 30-DEC-19
+
+Recovery Manager complete.

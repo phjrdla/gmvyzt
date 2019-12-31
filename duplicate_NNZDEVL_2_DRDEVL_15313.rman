@@ -1,0 +1,13 @@
+connect auxiliary sys/Welcome_2020
+run{
+allocate auxiliary channel aux1 type disk;
+allocate auxiliary channel aux2 type disk;
+allocate auxiliary channel aux3 type disk;
+allocate auxiliary channel aux4 type disk;
+DUPLICATE DATABASE 'NNZDEVL' TO 'DRDEVL'
+backup location '/DD2500/backup/NNZDEVL'
+spfile
+PARAMETER_VALUE_CONVERT
+  'NNZDEVL','DRDEVL'
+NOFILENAMECHECK;
+}

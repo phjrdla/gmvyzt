@@ -21,5 +21,6 @@ select sid
       ,osuser
       ,'alter system kill session '''||to_char(sid)||','||to_char(serial#)||''';' "kill_cmd"
   from v$session
+ where event# = 445
  order by sid
 /

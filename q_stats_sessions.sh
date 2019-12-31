@@ -1,8 +1,12 @@
 #!/usr/bin/ksh
+#
+# Sessions count and details per server
+# Sessions count and details per schema
+# Uses V$SESSION
+#
 this_script=$0
 
 [[ $# != 1 ]] && { print "Usage is $this_script db_name"; exit; }
-
 
 typeset -u DB_NAME=$1
 typeset -l lowerDB_NAME=$1
@@ -16,6 +20,12 @@ export ORACLE_SID=$DB_NAME
 ORAENV_ASK=NO
 . oraenv
 
+# Session report retention
+(( repret = 62 ))
+
+print "Report retention is $repret days"
+
+# Sessions reports location
 report_dir="/u01/app/oracle/admin/$DB_NAME/stats_sessions"
 [[ ! -d $report_dir ]] && mkdir -p $report_dir 
 
@@ -76,5 +86,6 @@ spool off
 exit
 !
 
-print "Report directory is $report_dir"
-ls -lrt $report_dir
+# Delete reports older then retention (repret in days)
+find $report_dir -mtime +$repret -exec ls -l {} \;
+find $report_dir -mtime +$repret -exec rm {} \;

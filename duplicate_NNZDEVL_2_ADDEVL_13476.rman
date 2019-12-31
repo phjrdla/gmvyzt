@@ -1,0 +1,18 @@
+connect target sys/Qmx0225_nnzdevl@NNZDEVL
+connect auxiliary sys/Qmx0225_nnzdevl
+run{
+allocate channel prm1 type disk;
+allocate channel prm2 type disk;
+allocate auxiliary channel aux1 type disk;
+allocate auxiliary channel aux2 type disk;
+allocate auxiliary channel aux3 type disk;
+allocate auxiliary channel aux4 type disk;
+DUPLICATE TARGET DATABASE TO 'ADDEVL'
+FROM ACTIVE DATABASE
+SPFILE
+  PARAMETER_VALUE_CONVERT
+    'NNZDEVL','ADDEVL','nnzdevl','addevl'
+  SET DB_UNIQUE_NAME='ADDEVL'
+USING COMPRESSED BACKUPSET SECTION SIZE 2G
+NOFILENAMECHECK;
+}

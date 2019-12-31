@@ -1,4 +1,8 @@
 #!/usr/bin/ksh
+#
+# Identified SQL statement related to an event
+# note : por event 445 (SQL*NET break/reset event) we look for the previous statement
+#
 this_script=$0
 
 
@@ -8,8 +12,12 @@ typeset -u DB_NAME=$1
 typeset -l lowerDB_NAME=$1
 (( event_number = $2 ))
 
-print "DB_NAME iz $DB_NAME"
-print "event_number iz $event_number"
+# Session report retention
+(( repret = 62 ))
+
+print "DB_NAME is $DB_NAME"
+print "event_number is $event_number"
+print "Report retention is $repret days"
 
 report_dir="/u01/app/oracle/admin/$DB_NAME/query_4_event"
 [[ ! -d $report_dir ]] && mkdir -p $report_dir
@@ -36,6 +44,7 @@ column machine     format a20 trunc
 column program     format a20 trunc
 column "Logon"     format a17 trunc
 column event       format a30 trunc
+column "EXEC_DATE" format a19
 
 column report_name   new_value report_name
 column timestamp     new_value loc_time
@@ -51,7 +60,7 @@ set termout on
 clear breaks
 break on sql_id page
 ttitle "$DB_NAME - &loc_time - Event $event_number - Queries"
-set linesize 200
+set linesize 215
 set pagesize 100
 set echo on
 set trimspool on
@@ -63,6 +72,10 @@ select sid
       ,program
       ,machine
       ,to_char(logon_time, 'DD-MM-YY HH24:MI:SS') "Logon"
+      ,case event#
+         when 445 then to_char(prev_exec_start,'DD/MM/YYYY HH24:MI:SS')
+         else          to_char(sql_exec_start,'DD/MM/YYYY HH24:MI:SS')
+      end "EXEC_DATE"
       ,event#
       ,event
       ,sql_id
@@ -71,19 +84,14 @@ select sid
  where event#=$event_number
  order by sid
 /
-select sql_id, piece, sql_text 
-from v\$sqltext 
-where sql_id in ( select distinct prev_sql_id from v\$session where event#=$event_number )
-order by sql_id,piece
-/
-select sql_id, sql_text "clob_text"
+select sql_id, sql_text
 from dba_hist_sqltext
-where sql_id in ( select distinct prev_sql_id from v\$session where event#=$event_number )
+where sql_id in ( select distinct decode(event#, 445, prev_sql_id, sql_id) from v\$session where event#=$event_number )
 order by sql_id
 /
 spool off
 !
 
-print "Report directory is $report_dir"
-ls -lrt $report_dir
-
+# Delete reports older then retention (repret in days)
+find $report_dir -mtime +$repret -exec ls -l {} \;
+find $report_dir -mtime +$repret -exec rm {} \;
